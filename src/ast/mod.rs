@@ -6,47 +6,47 @@ pub struct ASTRoot<'a> {
     pub span: TokenSpan,
     pub mod_decl: ASTMod<'a>,
     pub use_decls: Vec<ASTUse<'a>>,
-    pub types: Vec<ASTType<'a>>
+    pub types: Vec<ASTType<'a>>,
 }
 
 pub struct ASTMod<'a> {
     pub span: TokenSpan,
-    pub path: ASTPath<'a>
+    pub path: ASTPath<'a>,
 }
 
 pub struct ASTUse<'a> {
     pub span: TokenSpan,
-    pub path: ASTPath<'a>
+    pub path: ASTPath<'a>,
 }
 
 pub enum ASTModifier {
     Static,
     Abstract,
-    Native
+    Native,
 }
 
 pub enum ASTVisibility {
     Public,
     Module,
-    Private
+    Private,
 }
 
 pub enum ASTTypeKind<'a> {
     Class {
         members: Vec<ASTMember<'a>>,
         super_class: Option<ASTPartialTypeInfo<'a>>,
-        impls: Vec<ASTPartialTypeInfo<'a>>
+        impls: Vec<ASTPartialTypeInfo<'a>>,
     },
     Inter {
         members: Vec<ASTMember<'a>>, // should only be functions
-        super_interfaces: Vec<ASTPartialTypeInfo<'a>>
+        super_interfaces: Vec<ASTPartialTypeInfo<'a>>,
     },
     Enum {
         // TODO
     },
     Impl {
-        members: Vec<ASTMember<'a>> // should only be functions
-    }
+        members: Vec<ASTMember<'a>>, // should only be functions
+    },
 }
 
 pub struct ASTType<'a> {
@@ -55,7 +55,7 @@ pub struct ASTType<'a> {
     pub visibility: ASTVisibility,
     pub modifiers: Vec<ASTModifier>,
     pub name: &'a str,
-    pub generics: Vec<ASTGenericBound<'a>>
+    pub generics: Vec<ASTGenericBound<'a>>,
 }
 
 pub struct ASTGenericBound<'a> {
@@ -68,33 +68,33 @@ pub struct ASTGenericBound<'a> {
 pub enum ASTMemberKind<'a> {
     Field {
         name_and_type: ASTNameAndType<'a>,
-        expression: Option<ASTExpr<'a>>
+        expression: Option<ASTExpr<'a>>,
     },
     Method {
         name_and_type: ASTNameAndType<'a>,
         parameters: Vec<ASTNameAndType<'a>>,
-        block: Option<ASTStatementBlock<'a>>
-    }
+        block: Option<ASTStatementBlock<'a>>,
+    },
 }
 
 pub struct ASTMember<'a> {
     pub kind: ASTMemberKind<'a>,
     pub span: TokenSpan,
     pub visibility: ASTVisibility,
-    pub modifiers: Vec<ASTModifier>
+    pub modifiers: Vec<ASTModifier>,
 }
 
 pub struct ASTNameAndType<'a> {
     pub span: TokenSpan,
     pub type_info: ASTTypeInfo<'a>,
-    pub name: &'a str
+    pub name: &'a str,
 }
 
 #[derive(Clone)]
 pub struct ASTPartialTypeInfo<'a> {
     pub span: TokenSpan,
     pub path: ASTPath<'a>,
-    pub generics: Vec<ASTPartialTypeInfo<'a>>
+    pub generics: Vec<ASTPartialTypeInfo<'a>>,
 }
 
 #[derive(Clone)]
@@ -102,13 +102,13 @@ pub struct ASTTypeInfo<'a> {
     pub span: TokenSpan,
     pub path: ASTPath<'a>,
     pub generics: Vec<ASTTypeInfo<'a>>,
-    pub array_dim: usize
+    pub array_dim: usize,
 }
 
 #[derive(Clone)]
 pub struct ASTPath<'a> {
     pub span: TokenSpan,
-    pub elements: Vec<&'a str>
+    pub elements: Vec<&'a str>,
 }
 
 #[derive(Debug)]
@@ -133,23 +133,23 @@ pub enum ASTOperator {
 
     Inc,
     Dec,
-    Not
+    Not,
 }
 
 pub enum ASTStatementKind<'a> {
     Local(&'a str, Option<ASTTypeInfo<'a>>, Option<Box<ASTExpr<'a>>>),
-    Expression(Box<ASTExpr<'a>>)
+    Expression(Box<ASTExpr<'a>>),
 }
 
 pub struct ASTStatement<'a> {
     pub kind: ASTStatementKind<'a>,
     pub span: TokenSpan,
-    pub ending: bool
+    pub ending: bool,
 }
 
 pub struct ASTStatementBlock<'a> {
     pub span: TokenSpan,
-    pub statements: Vec<ASTStatement<'a>>
+    pub statements: Vec<ASTStatement<'a>>,
 }
 
 pub enum ASTExprKind<'a> {
@@ -170,17 +170,21 @@ pub enum ASTExprKind<'a> {
     Indexing(Box<ASTExpr<'a>>, Box<ASTExpr<'a>>),
 
     Block(ASTStatementBlock<'a>),
-    IfElse(Box<ASTExpr<'a>>, ASTStatementBlock<'a>, ASTStatementBlock<'a>),
+    IfElse(
+        Box<ASTExpr<'a>>,
+        ASTStatementBlock<'a>,
+        ASTStatementBlock<'a>,
+    ),
     If(Box<ASTExpr<'a>>, ASTStatementBlock<'a>),
     Loop(ASTStatementBlock<'a>),
     While(Box<ASTExpr<'a>>, ASTStatementBlock<'a>),
     Match(/* TODO */),
-    For(/* TODO */)
+    For(/* TODO */),
 }
 
 pub struct ASTExpr<'a> {
     pub kind: ASTExprKind<'a>,
-    pub span: TokenSpan
+    pub span: TokenSpan,
 }
 
 impl<'a> ASTPartialTypeInfo<'a> {
@@ -189,7 +193,7 @@ impl<'a> ASTPartialTypeInfo<'a> {
             span: self.span,
             path: self.path.clone(),
             generics: self.generics.iter().map(|g| g.into_type_info()).collect(),
-            array_dim: 0
+            array_dim: 0,
         }
     }
 }

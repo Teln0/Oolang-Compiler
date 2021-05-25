@@ -1,15 +1,19 @@
-use crate::ast::{ASTRoot, ASTExpr, ASTExprKind, ASTStatementBlock, ASTStatement, ASTStatementKind, ASTTypeInfo, ASTPath, ASTType, ASTTypeKind, ASTVisibility, ASTModifier, ASTGenericBound, ASTPartialTypeInfo, ASTMember, ASTMemberKind, ASTNameAndType};
-use crate::reporting::string_tree::StringTree;
 use crate::ast::visitor::ASTVisitor;
+use crate::ast::{
+    ASTExpr, ASTExprKind, ASTGenericBound, ASTMember, ASTMemberKind, ASTModifier,
+    ASTPartialTypeInfo, ASTPath, ASTRoot, ASTStatement, ASTStatementBlock, ASTStatementKind,
+    ASTType, ASTTypeInfo, ASTTypeKind, ASTVisibility,
+};
+use crate::reporting::string_tree::StringTree;
 
 struct ASTDumperVisitor {
-    tree: StringTree
+    tree: StringTree,
 }
 
 impl ASTDumperVisitor {
     pub fn new(branch_name: String) -> Self {
         ASTDumperVisitor {
-            tree: StringTree::new(branch_name)
+            tree: StringTree::new(branch_name),
         }
     }
 }
@@ -57,7 +61,8 @@ impl ASTVisitor for ASTDumperVisitor {
                 self.tree.add_tree_branch(branch.tree);
             }
             ASTExprKind::StaticAccess(expr, static_member) => {
-                let mut branch = ASTDumperVisitor::new(format!("(static access) {:?}", static_member));
+                let mut branch =
+                    ASTDumperVisitor::new(format!("(static access) {:?}", static_member));
                 branch.walk_expr(expr);
                 self.tree.add_tree_branch(branch.tree);
             }
@@ -164,7 +169,10 @@ impl ASTVisitor for ASTDumperVisitor {
                 self.tree.add_tree_branch(branch.tree);
             }
             ASTStatementKind::Expression(expr) => {
-                let mut branch = ASTDumperVisitor::new(format!("expression statement {}", if obj.ending { "(ending)" } else { "" }));
+                let mut branch = ASTDumperVisitor::new(format!(
+                    "expression statement {}",
+                    if obj.ending { "(ending)" } else { "" }
+                ));
                 branch.walk_expr(expr);
                 self.tree.add_tree_branch(branch.tree);
             }
@@ -190,7 +198,9 @@ impl ASTVisitor for ASTDumperVisitor {
         }
         branch.tree.add_tree_branch(branch_inner.tree);
 
-        branch.tree.add_branch(&format!("array dim {}", obj.array_dim));
+        branch
+            .tree
+            .add_branch(&format!("array dim {}", obj.array_dim));
 
         self.tree.add_tree_branch(branch.tree);
     }
@@ -249,7 +259,7 @@ impl ASTVisitor for ASTDumperVisitor {
         match obj {
             ASTModifier::Static => self.tree.add_branch("static"),
             ASTModifier::Abstract => self.tree.add_branch("abstract"),
-            ASTModifier::Native => self.tree.add_branch("native")
+            ASTModifier::Native => self.tree.add_branch("native"),
         }
     }
 
@@ -272,8 +282,11 @@ impl ASTVisitor for ASTDumperVisitor {
     }
 
     fn walk_member(&mut self, obj: &ASTMember) {
-        let mut branch = match &obj.kind {
-            ASTMemberKind::Field { name_and_type, expression } => {
+        let branch = match &obj.kind {
+            ASTMemberKind::Field {
+                name_and_type,
+                expression,
+            } => {
                 let mut branch = ASTDumperVisitor::new(format!("field {}", name_and_type.name));
 
                 let mut branch_inner = ASTDumperVisitor::new(format!("type"));
@@ -287,8 +300,12 @@ impl ASTVisitor for ASTDumperVisitor {
                 }
 
                 branch
-            },
-            ASTMemberKind::Method { name_and_type, parameters, block } => {
+            }
+            ASTMemberKind::Method {
+                name_and_type,
+                parameters,
+                block,
+            } => {
                 let mut branch = ASTDumperVisitor::new(format!("method {}", name_and_type.name));
 
                 let mut branch_inner = ASTDumperVisitor::new(format!("return type"));
@@ -297,7 +314,8 @@ impl ASTVisitor for ASTDumperVisitor {
 
                 let mut branch_inner = ASTDumperVisitor::new(format!("parameters"));
                 for parameter in parameters {
-                    let mut branch_inner_inner = ASTDumperVisitor::new(format!("parameter {}", parameter.name));
+                    let mut branch_inner_inner =
+                        ASTDumperVisitor::new(format!("parameter {}", parameter.name));
                     branch_inner_inner.walk_type_info(&parameter.type_info);
                     branch_inner.tree.add_tree_branch(branch_inner_inner.tree);
                 }
@@ -310,19 +328,23 @@ impl ASTVisitor for ASTDumperVisitor {
                 }
 
                 branch
-            },
+            }
         };
 
         self.tree.add_tree_branch(branch.tree);
     }
 
     fn walk_type(&mut self, obj: &ASTType) {
-        let mut branch = ASTDumperVisitor::new(format!("{} {}", obj.name, match obj.kind {
-            ASTTypeKind::Class { .. } => "class",
-            ASTTypeKind::Inter { .. } => "inter",
-            ASTTypeKind::Enum { .. } => "enum",
-            ASTTypeKind::Impl { .. } => "impl"
-        }));
+        let mut branch = ASTDumperVisitor::new(format!(
+            "{} {}",
+            obj.name,
+            match obj.kind {
+                ASTTypeKind::Class { .. } => "class",
+                ASTTypeKind::Inter { .. } => "inter",
+                ASTTypeKind::Enum { .. } => "enum",
+                ASTTypeKind::Impl { .. } => "impl",
+            }
+        ));
 
         let mut branch_inner = ASTDumperVisitor::new(format!("visibility"));
         branch_inner.walk_visibility(&obj.visibility);
@@ -341,7 +363,11 @@ impl ASTVisitor for ASTDumperVisitor {
         branch.tree.add_tree_branch(branch_inner.tree);
 
         match &obj.kind {
-            ASTTypeKind::Class { super_class, impls, members } => {
+            ASTTypeKind::Class {
+                super_class,
+                impls,
+                members,
+            } => {
                 if let Some(super_class) = super_class {
                     let mut branch_inner = ASTDumperVisitor::new(format!("super class"));
                     branch_inner.walk_partial_type_info(super_class);

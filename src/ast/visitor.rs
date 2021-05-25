@@ -17,17 +17,17 @@ pub trait ASTVisitor {
         self.walk_path(&obj.path);
     }
 
-    fn walk_modifier(&mut self, _obj: &ASTModifier) {
+    fn walk_modifier(&mut self, _obj: &ASTModifier) {}
 
-    }
-
-    fn walk_visibility(&mut self, _obj: &ASTVisibility) {
-
-    }
+    fn walk_visibility(&mut self, _obj: &ASTVisibility) {}
 
     fn walk_type(&mut self, obj: &ASTType) {
         match &obj.kind {
-            ASTTypeKind::Class { members, impls, super_class} => {
+            ASTTypeKind::Class {
+                members,
+                impls,
+                super_class,
+            } => {
                 for member in members {
                     self.walk_member(member);
                 }
@@ -38,7 +38,10 @@ pub trait ASTVisitor {
                     self.walk_partial_type_info(super_class);
                 }
             }
-            ASTTypeKind::Inter { members, super_interfaces } => {
+            ASTTypeKind::Inter {
+                members,
+                super_interfaces,
+            } => {
                 for member in members {
                     self.walk_member(member);
                 }
@@ -76,7 +79,10 @@ pub trait ASTVisitor {
 
     fn walk_member(&mut self, obj: &ASTMember) {
         match &obj.kind {
-            ASTMemberKind::Field { expression, name_and_type } => {
+            ASTMemberKind::Field {
+                expression,
+                name_and_type,
+            } => {
                 self.walk_name_and_type(name_and_type);
                 if let Some(expression) = expression {
                     self.walk_expr(expression);
@@ -85,7 +91,7 @@ pub trait ASTVisitor {
             ASTMemberKind::Method {
                 name_and_type,
                 block,
-                parameters
+                parameters,
             } => {
                 self.walk_name_and_type(name_and_type);
                 if let Some(block) = block {
@@ -121,9 +127,7 @@ pub trait ASTVisitor {
         }
     }
 
-    fn walk_path(&mut self, _obj: &ASTPath) {
-
-    }
+    fn walk_path(&mut self, _obj: &ASTPath) {}
 
     fn walk_statement(&mut self, obj: &ASTStatement) {
         match &obj.kind {
@@ -184,11 +188,7 @@ pub trait ASTVisitor {
             ASTExprKind::Block(block) => {
                 self.walk_statement_block(block);
             }
-            ASTExprKind::IfElse(
-                cond,
-                block_if,
-                block_else
-            ) => {
+            ASTExprKind::IfElse(cond, block_if, block_else) => {
                 self.walk_expr(cond);
                 self.walk_statement_block(block_if);
                 self.walk_statement_block(block_else);

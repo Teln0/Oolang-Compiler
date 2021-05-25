@@ -1,7 +1,11 @@
-use crate::lexer::{Token, TokenKind, BinOpTokenKind, DelimTokenKind, KeywordTokenKind};
-use crate::reporting::TokenSpan;
-use crate::ast::{ASTExpr, ASTOperator, ASTExprKind, ASTStatement, ASTStatementKind, ASTStatementBlock, ASTTypeInfo, ASTPath, ASTType, ASTRoot, ASTMod, ASTUse, ASTVisibility, ASTModifier, ASTGenericBound, ASTPartialTypeInfo, ASTMember, ASTTypeKind, ASTMemberKind, ASTNameAndType};
+use crate::ast::{
+    ASTExpr, ASTExprKind, ASTGenericBound, ASTMember, ASTMemberKind, ASTMod, ASTModifier,
+    ASTNameAndType, ASTOperator, ASTPartialTypeInfo, ASTPath, ASTRoot, ASTStatement,
+    ASTStatementBlock, ASTStatementKind, ASTType, ASTTypeInfo, ASTTypeKind, ASTUse, ASTVisibility,
+};
 use crate::lexer::DelimTokenKind::SBracket;
+use crate::lexer::{BinOpTokenKind, DelimTokenKind, KeywordTokenKind, Token, TokenKind};
+use crate::reporting::TokenSpan;
 
 #[repr(u8)]
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -12,19 +16,19 @@ pub enum OpPrecedence {
     Eq,
     Cmp,
     Term,
-    Factor
+    Factor,
 }
 
 pub struct Parser<'a> {
     tokens: Vec<Token<'a>>,
-    current_token: usize
+    current_token: usize,
 }
 
 impl<'a> Parser<'a> {
     pub fn new(tokens: Vec<Token<'a>>) -> Self {
         Parser {
             tokens,
-            current_token: 0
+            current_token: 0,
         }
     }
 
@@ -39,9 +43,11 @@ impl<'a> Parser<'a> {
         self.advance();
         if token == expected {
             Ok(())
-        }
-        else {
-            Err(ParserError::new(TokenSpan::new(self.current_token, 1), token))
+        } else {
+            Err(ParserError::new(
+                TokenSpan::new(self.current_token, 1),
+                token,
+            ))
         }
     }
 
@@ -51,47 +57,44 @@ impl<'a> Parser<'a> {
 
     fn statement_undo_ending(&self, statement: &mut ASTStatement) -> Result<(), ParserError> {
         match &statement.kind {
-            ASTStatementKind::Expression(e) => {
-                match &e.kind {
-                    ASTExprKind::Block(_) => {
-                        statement.ending = false;
-                        return Ok(());
-                    }
-                    ASTExprKind::IfElse(_, _, _) => {
-                        statement.ending = false;
-                        return Ok(());
-                    }
-                    ASTExprKind::If(_, _) => {
-                        statement.ending = false;
-                        return Ok(());
-                    }
-                    ASTExprKind::While(_, _) => {
-                        statement.ending = false;
-                        return Ok(());
-                    }
-                    ASTExprKind::Loop(_) => {
-                        statement.ending = false;
-                        return Ok(());
-                    }
-                    ASTExprKind::Match() => {
-                        statement.ending = false;
-                        return Ok(());
-                    }
-                    ASTExprKind::For() => {
-                        statement.ending = false;
-                        return Ok(());
-                    }
-                    _ => {}
+            ASTStatementKind::Expression(e) => match &e.kind {
+                ASTExprKind::Block(_) => {
+                    statement.ending = false;
+                    return Ok(());
                 }
-            }
+                ASTExprKind::IfElse(_, _, _) => {
+                    statement.ending = false;
+                    return Ok(());
+                }
+                ASTExprKind::If(_, _) => {
+                    statement.ending = false;
+                    return Ok(());
+                }
+                ASTExprKind::While(_, _) => {
+                    statement.ending = false;
+                    return Ok(());
+                }
+                ASTExprKind::Loop(_) => {
+                    statement.ending = false;
+                    return Ok(());
+                }
+                ASTExprKind::Match() => {
+                    statement.ending = false;
+                    return Ok(());
+                }
+                ASTExprKind::For() => {
+                    statement.ending = false;
+                    return Ok(());
+                }
+                _ => {}
+            },
             _ => {}
         }
-
 
         let statement_end_loc = statement.span.base + statement.span.len;
         Err(ParserError::new(
             TokenSpan::new(statement_end_loc, 1),
-            self.tokens[statement_end_loc].kind
+            self.tokens[statement_end_loc].kind,
         ))
     }
 
@@ -119,14 +122,13 @@ impl<'a> Parser<'a> {
                         kind: ASTExprKind::IfElse(Box::new(cond), block_if, block_else),
                         span: TokenSpan::new_rn_ex(starting_token, self.current_token),
                     })
-                }
-                else {
+                } else {
                     Ok(ASTExpr {
                         kind: ASTExprKind::If(Box::new(cond), block_if),
                         span: TokenSpan::new_rn_ex(starting_token, self.current_token),
                     })
                 }
-            },
+            }
             TokenKind::Keyword(KeywordTokenKind::Loop) => {
                 self.advance();
                 let block = self.parse_statement_block()?;
@@ -134,20 +136,20 @@ impl<'a> Parser<'a> {
                     kind: ASTExprKind::Loop(block),
                     span: TokenSpan::new_rn_ex(starting_token, self.current_token),
                 })
-            },
+            }
             TokenKind::OpeningDelim(DelimTokenKind::CBracket) => {
                 let block = self.parse_statement_block()?;
                 Ok(ASTExpr {
                     kind: ASTExprKind::Block(block),
                     span: TokenSpan::new_rn_ex(starting_token, self.current_token),
                 })
-            },
+            }
             TokenKind::OpeningDelim(DelimTokenKind::Paren) => {
                 self.advance();
                 let inner = self.parse_expression()?;
                 self.advance_match(TokenKind::ClosingDelim(DelimTokenKind::Paren))?;
                 Ok(inner)
-            },
+            }
             TokenKind::Null => {
                 let res = Ok(ASTExpr {
                     kind: ASTExprKind::Null,
@@ -155,7 +157,7 @@ impl<'a> Parser<'a> {
                 });
                 self.advance();
                 res
-            },
+            }
             TokenKind::True => {
                 let res = Ok(ASTExpr {
                     kind: ASTExprKind::Boolean(true),
@@ -163,7 +165,7 @@ impl<'a> Parser<'a> {
                 });
                 self.advance();
                 res
-            },
+            }
             TokenKind::False => {
                 let res = Ok(ASTExpr {
                     kind: ASTExprKind::Boolean(false),
@@ -171,7 +173,7 @@ impl<'a> Parser<'a> {
                 });
                 self.advance();
                 res
-            },
+            }
             TokenKind::StringLiteral => {
                 let res = Ok(ASTExpr {
                     kind: ASTExprKind::StringLiteral(self.tokens[self.current_token].string),
@@ -179,7 +181,7 @@ impl<'a> Parser<'a> {
                 });
                 self.advance();
                 res
-            },
+            }
             TokenKind::Float => {
                 let res = Ok(ASTExpr {
                     kind: ASTExprKind::Float(self.tokens[self.current_token].string),
@@ -187,7 +189,7 @@ impl<'a> Parser<'a> {
                 });
                 self.advance();
                 res
-            },
+            }
             TokenKind::Num => {
                 let res = Ok(ASTExpr {
                     kind: ASTExprKind::Num(self.tokens[self.current_token].string),
@@ -195,7 +197,7 @@ impl<'a> Parser<'a> {
                 });
                 self.advance();
                 res
-            },
+            }
             TokenKind::Ident => {
                 let res = Ok(ASTExpr {
                     kind: ASTExprKind::Ident(self.tokens[self.current_token].string),
@@ -203,10 +205,13 @@ impl<'a> Parser<'a> {
                 });
                 self.advance();
                 res
-            },
+            }
             _ => {
                 self.advance();
-                Err(ParserError::new(TokenSpan::new_rn_ex(starting_token, self.current_token), token))
+                Err(ParserError::new(
+                    TokenSpan::new_rn_ex(starting_token, self.current_token),
+                    token,
+                ))
             }
         }
     }
@@ -224,28 +229,27 @@ impl<'a> Parser<'a> {
                     self.advance_match(TokenKind::Ident)?;
                     ASTExpr {
                         kind: ASTExprKind::MemberAccess(Box::new(expr), token_str),
-                        span: TokenSpan::new_rn_ex(starting_token, self.current_token)
+                        span: TokenSpan::new_rn_ex(starting_token, self.current_token),
                     }
-                },
+                }
                 TokenKind::ColonColon => {
                     self.advance();
                     let token_str = self.tokens[self.current_token].string;
                     self.advance_match(TokenKind::Ident)?;
                     ASTExpr {
                         kind: ASTExprKind::StaticAccess(Box::new(expr), token_str),
-                        span: TokenSpan::new_rn_ex(starting_token, self.current_token)
+                        span: TokenSpan::new_rn_ex(starting_token, self.current_token),
                     }
-                },
+                }
                 TokenKind::OpeningDelim(DelimTokenKind::Paren) => {
                     self.advance();
 
                     if self.peek() == TokenKind::ClosingDelim(DelimTokenKind::Paren) {
                         ASTExpr {
                             kind: ASTExprKind::Call(Box::new(expr), vec![]),
-                            span: TokenSpan::new_rn_ex(starting_token, self.current_token)
+                            span: TokenSpan::new_rn_ex(starting_token, self.current_token),
                         }
-                    }
-                    else {
+                    } else {
                         let mut args = vec![self.parse_expression()?];
                         while self.peek() == TokenKind::Comma {
                             self.advance();
@@ -254,20 +258,20 @@ impl<'a> Parser<'a> {
                         self.advance_match(TokenKind::ClosingDelim(DelimTokenKind::Paren))?;
                         ASTExpr {
                             kind: ASTExprKind::Call(Box::new(expr), args),
-                            span: TokenSpan::new_rn_ex(starting_token, self.current_token)
+                            span: TokenSpan::new_rn_ex(starting_token, self.current_token),
                         }
                     }
-                },
+                }
                 TokenKind::OpeningDelim(DelimTokenKind::SBracket) => {
                     self.advance();
                     let index = self.parse_expression()?;
                     self.advance_match(TokenKind::ClosingDelim(SBracket))?;
                     ASTExpr {
                         kind: ASTExprKind::Indexing(Box::new(expr), Box::new(index)),
-                        span: TokenSpan::new_rn_ex(starting_token, self.current_token)
+                        span: TokenSpan::new_rn_ex(starting_token, self.current_token),
                     }
                 }
-                _ => break
+                _ => break,
             }
         }
 
@@ -283,9 +287,9 @@ impl<'a> Parser<'a> {
                 Ok(ASTExpr {
                     kind: ASTExprKind::PreOp(
                         ASTOperator::Inc,
-                        Box::new(self.parse_expression_prefix()?)
+                        Box::new(self.parse_expression_prefix()?),
                     ),
-                    span: TokenSpan::new_rn_ex(starting_token, self.current_token)
+                    span: TokenSpan::new_rn_ex(starting_token, self.current_token),
                 })
             }
             TokenKind::MinusMinus => {
@@ -293,9 +297,9 @@ impl<'a> Parser<'a> {
                 Ok(ASTExpr {
                     kind: ASTExprKind::PreOp(
                         ASTOperator::Dec,
-                        Box::new(self.parse_expression_prefix()?)
+                        Box::new(self.parse_expression_prefix()?),
                     ),
-                    span: TokenSpan::new_rn_ex(starting_token, self.current_token)
+                    span: TokenSpan::new_rn_ex(starting_token, self.current_token),
                 })
             }
             TokenKind::Not => {
@@ -303,9 +307,9 @@ impl<'a> Parser<'a> {
                 Ok(ASTExpr {
                     kind: ASTExprKind::PreOp(
                         ASTOperator::Not,
-                        Box::new(self.parse_expression_prefix()?)
+                        Box::new(self.parse_expression_prefix()?),
                     ),
-                    span: TokenSpan::new_rn_ex(starting_token, self.current_token)
+                    span: TokenSpan::new_rn_ex(starting_token, self.current_token),
                 })
             }
             TokenKind::BinOp(BinOpTokenKind::Minus) => {
@@ -313,12 +317,12 @@ impl<'a> Parser<'a> {
                 Ok(ASTExpr {
                     kind: ASTExprKind::PreOp(
                         ASTOperator::Minus,
-                        Box::new(self.parse_expression_prefix()?)
+                        Box::new(self.parse_expression_prefix()?),
                     ),
-                    span: TokenSpan::new_rn_ex(starting_token, self.current_token)
+                    span: TokenSpan::new_rn_ex(starting_token, self.current_token),
                 })
             }
-            _ => self.parse_expression_call()
+            _ => self.parse_expression_call(),
         }
     }
 
@@ -333,24 +337,27 @@ impl<'a> Parser<'a> {
                     self.advance();
                     ASTExpr {
                         kind: ASTExprKind::PostOp(Box::new(lhs), ASTOperator::Inc),
-                        span: TokenSpan::new_rn_ex(starting_token, self.current_token)
+                        span: TokenSpan::new_rn_ex(starting_token, self.current_token),
                     }
-                },
+                }
                 TokenKind::MinusMinus => {
                     self.advance();
                     ASTExpr {
                         kind: ASTExprKind::PostOp(Box::new(lhs), ASTOperator::Dec),
-                        span: TokenSpan::new_rn_ex(starting_token, self.current_token)
+                        span: TokenSpan::new_rn_ex(starting_token, self.current_token),
                     }
-                },
-                _ => break
+                }
+                _ => break,
             }
         }
 
         Ok(lhs)
     }
 
-    fn parse_expression_with_precedence(&mut self, min_precedence: OpPrecedence) -> Result<ASTExpr<'a>, ParserError> {
+    fn parse_expression_with_precedence(
+        &mut self,
+        min_precedence: OpPrecedence,
+    ) -> Result<ASTExpr<'a>, ParserError> {
         let mut lhs = self.parse_expression_postfix()?;
 
         'loop_break: loop {
@@ -358,10 +365,18 @@ impl<'a> Parser<'a> {
             let op_token = self.peek();
             let (op, op_precedence) = match op_token {
                 TokenKind::Eq => (ASTOperator::Assign, OpPrecedence::Assignment),
-                TokenKind::BinOpAssign(BinOpTokenKind::Plus) => (ASTOperator::PlusAssign, OpPrecedence::Assignment),
-                TokenKind::BinOpAssign(BinOpTokenKind::Minus) => (ASTOperator::MinusAssign, OpPrecedence::Assignment),
-                TokenKind::BinOpAssign(BinOpTokenKind::Star) => (ASTOperator::MulAssign, OpPrecedence::Assignment),
-                TokenKind::BinOpAssign(BinOpTokenKind::Slash) => (ASTOperator::DivAssign, OpPrecedence::Assignment),
+                TokenKind::BinOpAssign(BinOpTokenKind::Plus) => {
+                    (ASTOperator::PlusAssign, OpPrecedence::Assignment)
+                }
+                TokenKind::BinOpAssign(BinOpTokenKind::Minus) => {
+                    (ASTOperator::MinusAssign, OpPrecedence::Assignment)
+                }
+                TokenKind::BinOpAssign(BinOpTokenKind::Star) => {
+                    (ASTOperator::MulAssign, OpPrecedence::Assignment)
+                }
+                TokenKind::BinOpAssign(BinOpTokenKind::Slash) => {
+                    (ASTOperator::DivAssign, OpPrecedence::Assignment)
+                }
                 TokenKind::OrOr => (ASTOperator::Or, OpPrecedence::Or),
                 TokenKind::AndAnd => (ASTOperator::And, OpPrecedence::And),
                 TokenKind::EqEq => (ASTOperator::Eq, OpPrecedence::Eq),
@@ -373,7 +388,7 @@ impl<'a> Parser<'a> {
                 TokenKind::BinOp(BinOpTokenKind::Minus) => (ASTOperator::Minus, OpPrecedence::Term),
                 TokenKind::BinOp(BinOpTokenKind::Star) => (ASTOperator::Mul, OpPrecedence::Factor),
                 TokenKind::BinOp(BinOpTokenKind::Slash) => (ASTOperator::Div, OpPrecedence::Factor),
-                _ => break 'loop_break
+                _ => break 'loop_break,
             };
 
             if op_precedence < min_precedence {
@@ -385,7 +400,7 @@ impl<'a> Parser<'a> {
             let rhs = Box::new(self.parse_expression_with_precedence(op_precedence)?);
             lhs = ASTExpr {
                 kind: ASTExprKind::BinOp(Box::new(lhs), op, rhs),
-                span: TokenSpan::new_rn_ex(starting_token, self.current_token)
+                span: TokenSpan::new_rn_ex(starting_token, self.current_token),
             };
         }
 
@@ -407,15 +422,13 @@ impl<'a> Parser<'a> {
                 let type_info = if self.peek() == TokenKind::Colon {
                     self.advance();
                     Some(self.parse_type_info()?)
-                }
-                else {
+                } else {
                     None
                 };
                 let assignment = if self.peek() == TokenKind::Eq {
                     self.advance();
                     Some(Box::new(self.parse_expression()?))
-                }
-                else {
+                } else {
                     None
                 };
                 self.advance_match(TokenKind::Semicolon)?;
@@ -423,7 +436,7 @@ impl<'a> Parser<'a> {
                 Ok(ASTStatement {
                     kind: ASTStatementKind::Local(name, type_info, assignment),
                     span: TokenSpan::new_rn_ex(starting_token, self.current_token),
-                    ending: false
+                    ending: false,
                 })
             }
             _ => {
@@ -436,7 +449,7 @@ impl<'a> Parser<'a> {
                 Ok(ASTStatement {
                     kind: ASTStatementKind::Expression(Box::new(expr)),
                     span: TokenSpan::new_rn_ex(starting_token, self.current_token),
-                    ending
+                    ending,
                 })
             }
         }
@@ -459,7 +472,7 @@ impl<'a> Parser<'a> {
 
         Ok(ASTStatementBlock {
             span: TokenSpan::new_rn_ex(starting_token, self.current_token),
-            statements
+            statements,
         })
     }
 
@@ -476,7 +489,7 @@ impl<'a> Parser<'a> {
 
         Ok(ASTPath {
             span: TokenSpan::new_rn_ex(starting_token, self.current_token),
-            elements
+            elements,
         })
     }
 
@@ -505,7 +518,7 @@ impl<'a> Parser<'a> {
             span: TokenSpan::new_rn_ex(starting_token, self.current_token),
             path,
             generics,
-            array_dim
+            array_dim,
         })
     }
 
@@ -527,7 +540,7 @@ impl<'a> Parser<'a> {
         Ok(ASTPartialTypeInfo {
             span: TokenSpan::new_rn_ex(starting_token, self.current_token),
             path,
-            generics
+            generics,
         })
     }
 
@@ -539,7 +552,7 @@ impl<'a> Parser<'a> {
         self.advance_match(TokenKind::Semicolon)?;
         Ok(ASTMod {
             span: TokenSpan::new_rn_ex(starting_token, self.current_token),
-            path
+            path,
         })
     }
 
@@ -551,7 +564,7 @@ impl<'a> Parser<'a> {
         self.advance_match(TokenKind::Semicolon)?;
         Ok(ASTUse {
             span: TokenSpan::new_rn_ex(starting_token, self.current_token),
-            path
+            path,
         })
     }
 
@@ -565,7 +578,7 @@ impl<'a> Parser<'a> {
                 self.advance();
                 ASTVisibility::Private
             }
-            _ => ASTVisibility::Module
+            _ => ASTVisibility::Module,
         }
     }
 
@@ -576,10 +589,10 @@ impl<'a> Parser<'a> {
                 TokenKind::Keyword(KeywordTokenKind::Abstract) => ASTModifier::Abstract,
                 TokenKind::Keyword(KeywordTokenKind::Static) => ASTModifier::Static,
                 TokenKind::Keyword(KeywordTokenKind::Native) => ASTModifier::Native,
-                _ => break
+                _ => break,
             });
             self.advance();
-        };
+        }
 
         result
     }
@@ -608,7 +621,7 @@ impl<'a> Parser<'a> {
             span: TokenSpan::new_rn_ex(starting_token, self.current_token),
             name,
             super_requirements,
-            impl_requirements
+            impl_requirements,
         })
     }
 
@@ -623,8 +636,7 @@ impl<'a> Parser<'a> {
             }
             self.advance_match(TokenKind::Gt)?;
             Ok(bounds)
-        }
-        else {
+        } else {
             Ok(vec![])
         }
     }
@@ -641,7 +653,7 @@ impl<'a> Parser<'a> {
         Ok(ASTNameAndType {
             span: TokenSpan::new_rn_ex(starting_token, self.current_token),
             name,
-            type_info
+            type_info,
         })
     }
 
@@ -669,24 +681,22 @@ impl<'a> Parser<'a> {
             let type_info = if self.peek() == TokenKind::Arrow {
                 self.advance();
                 self.parse_type_info()?
-            }
-            else {
+            } else {
                 ASTTypeInfo {
                     span: TokenSpan::new(self.current_token, 0),
                     path: ASTPath {
                         span: TokenSpan::new(self.current_token, 0),
-                        elements: vec!["void"]
+                        elements: vec!["void"],
                     },
                     generics: vec![],
-                    array_dim: 0
+                    array_dim: 0,
                 }
             };
             let name_and_type_end = self.current_token;
             let block = if self.peek() == TokenKind::Semicolon {
                 self.advance();
                 None
-            }
-            else {
+            } else {
                 Some(self.parse_statement_block()?)
             };
 
@@ -694,26 +704,24 @@ impl<'a> Parser<'a> {
                 name_and_type: ASTNameAndType {
                     span: TokenSpan::new_rn_ex(name_and_type_start, name_and_type_end),
                     name,
-                    type_info
+                    type_info,
                 },
                 parameters,
-                block
+                block,
             }
-        }
-        else {
+        } else {
             let name_and_type = self.parse_name_and_type()?;
             let expression = if self.peek() == TokenKind::Eq {
                 self.advance();
                 Some(self.parse_expression()?)
-            }
-            else {
+            } else {
                 None
             };
             self.advance_match(TokenKind::Semicolon)?;
 
             ASTMemberKind::Field {
                 name_and_type,
-                expression
+                expression,
             }
         };
 
@@ -721,7 +729,7 @@ impl<'a> Parser<'a> {
             kind,
             span: TokenSpan::new_rn_ex(starting_token, self.current_token),
             visibility,
-            modifiers
+            modifiers,
         })
     }
 
@@ -743,8 +751,7 @@ impl<'a> Parser<'a> {
                 let super_class = if self.peek() == TokenKind::Colon {
                     self.advance();
                     Some(self.parse_partial_type_info()?)
-                }
-                else {
+                } else {
                     None
                 };
                 let mut impls = vec![];
@@ -766,12 +773,15 @@ impl<'a> Parser<'a> {
                 ASTTypeKind::Class {
                     super_class,
                     members,
-                    impls
+                    impls,
                 }
             }
             _ => {
                 self.advance();
-                return Err(ParserError::new(TokenSpan::new_rn_ex(starting_token, self.current_token), self.peek()));
+                return Err(ParserError::new(
+                    TokenSpan::new_rn_ex(starting_token, self.current_token),
+                    self.peek(),
+                ));
             }
         };
 
@@ -781,7 +791,7 @@ impl<'a> Parser<'a> {
             name,
             visibility,
             modifiers,
-            generics
+            generics,
         })
     }
 
@@ -803,7 +813,7 @@ impl<'a> Parser<'a> {
             span: TokenSpan::new_rn_ex(starting_token, self.current_token),
             types,
             mod_decl,
-            use_decls
+            use_decls,
         })
     }
 }
@@ -811,14 +821,11 @@ impl<'a> Parser<'a> {
 #[derive(Debug)]
 pub struct ParserError {
     pub span: TokenSpan,
-    pub got: TokenKind
+    pub got: TokenKind,
 }
 
 impl ParserError {
     pub fn new(span: TokenSpan, got: TokenKind) -> Self {
-        ParserError {
-            span,
-            got
-        }
+        ParserError { span, got }
     }
 }

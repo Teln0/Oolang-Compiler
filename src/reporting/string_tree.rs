@@ -1,6 +1,6 @@
 pub struct StringTree {
     name: String,
-    branches: Vec<StringTree>
+    branches: Vec<StringTree>,
 }
 
 impl StringTree {
@@ -32,7 +32,7 @@ impl StringTree {
         for i in 0..=n {
             self.branches[i].dump_branch(
                 format!("{}{}", pc, if i == n { "└ " } else { "├ " }),
-                format!("{}{}", pc, if i == n { "  " } else { "│ " })
+                format!("{}{}", pc, if i == n { "  " } else { "│ " }),
             );
         }
     }

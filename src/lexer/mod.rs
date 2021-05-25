@@ -1,8 +1,8 @@
-use crate::reporting::CharSpan;
-use crate::lexer::TokenKind::*;
 use crate::lexer::BinOpTokenKind::*;
 use crate::lexer::DelimTokenKind::*;
 use crate::lexer::KeywordTokenKind::*;
+use crate::lexer::TokenKind::*;
+use crate::reporting::CharSpan;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum BinOpTokenKind {
@@ -16,7 +16,7 @@ pub enum BinOpTokenKind {
 pub enum DelimTokenKind {
     Paren,
     SBracket,
-    CBracket
+    CBracket,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -44,7 +44,7 @@ pub enum KeywordTokenKind {
     Loop,
     For,
 
-    Let
+    Let,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -86,20 +86,20 @@ pub enum TokenKind {
 
     Keyword(KeywordTokenKind),
 
-    EndOfFile
+    EndOfFile,
 }
 
 pub struct Token<'a> {
     pub kind: TokenKind,
     pub span: CharSpan,
-    pub string: &'a str
+    pub string: &'a str,
 }
 
 pub struct Lexer<'a> {
     current_byte: usize,
     source: &'a str,
     tokens: Vec<Token<'a>>,
-    bytes: &'a [u8]
+    bytes: &'a [u8],
 }
 
 impl<'a> Lexer<'a> {
@@ -108,7 +108,7 @@ impl<'a> Lexer<'a> {
             current_byte: 0,
             source,
             tokens: vec![],
-            bytes: source.as_bytes()
+            bytes: source.as_bytes(),
         }
     }
 
@@ -124,13 +124,21 @@ impl<'a> Lexer<'a> {
 
         match self.advance() {
             b'+' => Ok(self.pick_3(base, b'=', b'+', BinOpAssign(Plus), PlusPlus, BinOp(Plus))),
-            b'-' => if self.peek() == b'>' {
-                self.advance();
-                Ok(self.add(base, Arrow))
+            b'-' => {
+                if self.peek() == b'>' {
+                    self.advance();
+                    Ok(self.add(base, Arrow))
+                } else {
+                    Ok(self.pick_3(
+                        base,
+                        b'=',
+                        b'-',
+                        BinOpAssign(Minus),
+                        MinusMinus,
+                        BinOp(Minus),
+                    ))
+                }
             }
-            else {
-                Ok(self.pick_3(base, b'=', b'-', BinOpAssign(Minus), MinusMinus, BinOp(Minus)))
-            },
             b'*' => Ok(self.pick_2(base, b'=', BinOpAssign(Star), BinOp(Star))),
             b'/' => Ok(self.pick_2(base, b'=', BinOpAssign(Slash), BinOp(Slash))),
             b'=' => Ok(self.pick_2(base, b'=', EqEq, Eq)),
@@ -151,7 +159,14 @@ impl<'a> Lexer<'a> {
             b'.' => Ok(self.add(base, Dot)),
             b'"' => {
                 macro_rules! err_if_at_end {
-                    () => { if self.is_at_end() { return Err(LexerError { kind: LexerErrorKind::UnterminatedString, pos: base }) } }
+                    () => {
+                        if self.is_at_end() {
+                            return Err(LexerError {
+                                kind: LexerErrorKind::UnterminatedString,
+                                pos: base,
+                            });
+                        }
+                    };
                 }
                 err_if_at_end!();
                 while self.peek() != b'"' {
@@ -211,25 +226,25 @@ impl<'a> Lexer<'a> {
                     "true" => self.add(base, True),
                     "false" => self.add(base, False),
                     "null" => self.add(base, Null),
-                    _ => self.add(base, Ident)
+                    _ => self.add(base, Ident),
                 }
 
                 Ok(())
             }
             _ => Err(LexerError {
-                    kind: LexerErrorKind::UnrecognizedCharacter,
-                    pos: base
-                })
+                kind: LexerErrorKind::UnrecognizedCharacter,
+                pos: base,
+            }),
         }
     }
 
     fn is_valid_ident(c: u8, first: bool) -> bool {
-        c == b'_' || if first {
-            char::from(c).is_ascii_alphabetic()
-        }
-        else {
-            char::from(c).is_ascii_alphanumeric()
-        }
+        c == b'_'
+            || if first {
+                char::from(c).is_ascii_alphabetic()
+            } else {
+                char::from(c).is_ascii_alphanumeric()
+            }
     }
 
     fn peek(&self) -> u8 {
@@ -242,16 +257,20 @@ impl<'a> Lexer<'a> {
         r
     }
 
-    fn advance_if(&mut self, condition: u8, base: usize, kind: TokenKind) -> Result<(), LexerError> {
+    fn advance_if(
+        &mut self,
+        condition: u8,
+        base: usize,
+        kind: TokenKind,
+    ) -> Result<(), LexerError> {
         if self.peek() == condition {
             self.advance();
             self.add(base, kind);
             Ok(())
-        }
-        else {
+        } else {
             Err(LexerError {
                 kind: LexerErrorKind::UnrecognizedCharacter,
-                pos: self.current_byte
+                pos: self.current_byte,
             })
         }
     }
@@ -261,9 +280,9 @@ impl<'a> Lexer<'a> {
             kind,
             span: CharSpan {
                 base,
-                len: self.current_byte - base
+                len: self.current_byte - base,
             },
-            string: &self.source[base..self.current_byte]
+            string: &self.source[base..self.current_byte],
         })
     }
 
@@ -271,31 +290,36 @@ impl<'a> Lexer<'a> {
         let kind = if self.peek() == condition {
             self.advance();
             ok
-        }
-        else {
+        } else {
             not_ok
         };
         self.tokens.push(Token {
             kind,
             span: CharSpan {
                 base,
-                len: self.current_byte - base
+                len: self.current_byte - base,
             },
-            string: &self.source[base..self.current_byte]
+            string: &self.source[base..self.current_byte],
         })
     }
 
-    fn pick_3(&mut self, base: usize, condition1: u8, condition2: u8, op1: TokenKind, op2: TokenKind, op3: TokenKind) {
+    fn pick_3(
+        &mut self,
+        base: usize,
+        condition1: u8,
+        condition2: u8,
+        op1: TokenKind,
+        op2: TokenKind,
+        op3: TokenKind,
+    ) {
         let kind = if self.peek() == condition1 {
             self.advance();
             op1
-        }
-        else {
+        } else {
             if self.peek() == condition2 {
                 self.advance();
                 op2
-            }
-            else {
+            } else {
                 op3
             }
         };
@@ -303,9 +327,9 @@ impl<'a> Lexer<'a> {
             kind,
             span: CharSpan {
                 base,
-                len: self.current_byte - base
+                len: self.current_byte - base,
             },
-            string: &self.source[base..self.current_byte]
+            string: &self.source[base..self.current_byte],
         })
     }
 
@@ -321,9 +345,9 @@ impl<'a> Lexer<'a> {
             kind: EndOfFile,
             span: CharSpan {
                 base: self.current_byte,
-                len: 0
+                len: 0,
             },
-            string: ""
+            string: "",
         });
         Ok(self.tokens)
     }
@@ -332,11 +356,11 @@ impl<'a> Lexer<'a> {
 #[derive(Debug)]
 pub enum LexerErrorKind {
     UnrecognizedCharacter,
-    UnterminatedString
+    UnterminatedString,
 }
 
 #[derive(Debug)]
 pub struct LexerError {
     pub kind: LexerErrorKind,
-    pub pos: usize
+    pub pos: usize,
 }

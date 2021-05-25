@@ -1,24 +1,25 @@
+use autolang_compiler::compiler::Compiler;
 use autolang_compiler::lexer::Lexer;
 use autolang_compiler::parser::Parser;
-use autolang_compiler::compiler::Compiler;
 
 fn main() {
-    let tokens = Lexer::new("
+    let tokens = Lexer::new(
+        "
     mod telno::testing;
 
-    class A<T> {
+    class C {}
+
+    class B: C {}
+
+    class A<T: C> {}
+
+    class Main: A<B> {
+
     }
-
-    pub class Main<T: A<Main>>: A {
-        pub static field_1: u64 = 5 + 6 + 3 + 7;
-
-        pub static fn main(args: String[]) -> void {
-            let a: str = \"test\";
-        }
-
-        pub abstract fn test();
-    }
-    ").lex().unwrap();
+    ",
+    )
+    .lex()
+    .unwrap();
 
     let ast = Parser::new(tokens).parse().unwrap();
 
