@@ -7,13 +7,13 @@ fn main() {
         "
     mod telno::testing;
 
-    class C {}
+    class C {
+    }
 
-    class B: C {}
+    class B<T: C> {
+    }
 
-    class A<T: C> {}
-
-    class Main: A<B> {
+    class Main<T: C, T2: B<T>> {
 
     }
     ",

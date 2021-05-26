@@ -1,7 +1,8 @@
+pub mod codegen;
 pub mod cycle_detection;
 pub mod ref_managers;
 
-use crate::ast::{ASTModifier, ASTRoot, ASTTypeKind, ASTVisibility};
+use crate::ast::{ASTModifier, ASTRoot, ASTTypeKind, ASTVisibility, ASTMemberKind};
 use crate::compiler::ref_managers::{AbsolutePath, FieldRefManager, GenericBound, MethodRefManager, TypeInfo, TypeRef, TypeRefAddResult, TypeRefKind, TypeRefManager, TypeRefResolvingContext, TypeRefResolvingResult, GenericBoundsCheckingResult};
 use std::collections::HashMap;
 use crate::compiler::cycle_detection::check_cycles;
@@ -174,21 +175,21 @@ impl<'a> Compiler<'a> {
 
     pub fn validate_generics_extensions_and_implementations(&mut self, root: &ASTRoot<'a>) {
         for type_decl in &root.types {
+            let mut context = TypeRefResolvingContext {
+                origin: &root.mod_decl.path.elements,
+                origin_type_ref: None,
+            };
+            let type_ref = match self
+                .type_ref_manager
+                .resolve_type_ref(context, &[type_decl.name])
+            {
+                TypeRefResolvingResult::Real(type_ref) => type_ref,
+                _ => unreachable!(),
+            };
+            context.origin_type_ref = Some(type_ref);
+
             match &type_decl.kind {
                 ASTTypeKind::Class { .. } => {
-                    let mut context = TypeRefResolvingContext {
-                        origin: &root.mod_decl.path.elements,
-                        origin_type_ref: None,
-                    };
-                    let type_ref = match self
-                        .type_ref_manager
-                        .resolve_type_ref(context, &[type_decl.name])
-                    {
-                        TypeRefResolvingResult::Real(type_ref) => type_ref,
-                        _ => unreachable!(),
-                    };
-                    context.origin_type_ref = Some(type_ref);
-
                     // If there is a super class, check it
                     let super_class = self.type_ref_manager.get_super_class_of_real(type_ref);
                     if let Some(super_class) = super_class {
@@ -217,6 +218,53 @@ impl<'a> Compiler<'a> {
                 }
                 _ => todo!(),
             }
+
+            // Check every generic
+            for generic in &self.type_ref_manager.type_refs[type_ref].generic_bounds {
+                // TODO : check if super requirements are either one class or one or more interfaces
+
+                for super_requirement in &generic.super_requirements {
+                    // There cannot be cycles in generics (generics either extend earlier generics, or real types that cannot have cycles)
+
+                    // Check generics
+                    match self.type_ref_manager.check_generic_bounds(super_requirement) {
+                        GenericBoundsCheckingResult::Ok => {},
+                        _ => todo!("invalid generic")
+                    }
+                }
+                for _impl_requirement in &generic.impl_requirements {
+                    todo!()
+                }
+            }
+        }
+    }
+
+    pub fn register_fields_and_methods(&mut self, root: &ASTRoot<'a>) {
+        for type_decl in &root.types {
+            let mut context = TypeRefResolvingContext {
+                origin: &root.mod_decl.path.elements,
+                origin_type_ref: None,
+            };
+            let type_ref = match self
+                .type_ref_manager
+                .resolve_type_ref(context, &[type_decl.name])
+            {
+                TypeRefResolvingResult::Real(type_ref) => type_ref,
+                _ => unreachable!(),
+            };
+            context.origin_type_ref = Some(type_ref);
+
+            match &type_decl.kind {
+                ASTTypeKind::Class { members, .. } => {
+                    for member in members {
+                        match &member.kind {
+                            ASTMemberKind::Field { .. } => unimplemented!(),
+                            ASTMemberKind::Method { .. } => unimplemented!()
+                        }
+                    }
+                }
+                _ => todo!(),
+            }
         }
     }
 
@@ -227,5 +275,6 @@ impl<'a> Compiler<'a> {
         self.register_type_generics(root);
         self.register_type_extensions_and_implementations(root);
         self.validate_generics_extensions_and_implementations(root);
+        self.register_fields_and_methods(root);
     }
 }

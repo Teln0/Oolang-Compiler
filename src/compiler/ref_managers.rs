@@ -205,7 +205,7 @@ impl<'a> TypeRefManager<'a> {
                 }
             }
         } else {
-            unimplemented!("absolute path resolving")
+            todo!("add absolute path resolving")
         }
     }
 
@@ -270,11 +270,18 @@ impl<'a> TypeRefManager<'a> {
                             false
                         }
                     }
-                    _ => unimplemented!()
+                    _ => todo!()
                 }
             }
-            TypeInfo::Generic(GenericTypeInfo{ .. }) => {
-                unimplemented!()
+            TypeInfo::Generic(GenericTypeInfo{ parent_type, generic_ref, .. }) => {
+                for requirement in &self.type_refs[*parent_type].generic_bounds[*generic_ref].super_requirements {
+                    // Check if any of the super requirements are or contain the supposed super class
+                    if requirement == supposed_super || self.inherits(requirement, supposed_super) {
+                        return true;
+                    }
+                }
+
+                false
             }
         }
     }
@@ -289,7 +296,7 @@ impl<'a> TypeRefManager<'a> {
 
                 for i in 0..generic_bounds.len() {
                     if generic_bounds[i].impl_requirements.len() != 0 {
-                        unimplemented!()
+                        todo!()
                     }
 
                     for super_requirement in &generic_bounds[i].super_requirements {
@@ -301,7 +308,7 @@ impl<'a> TypeRefManager<'a> {
 
                 GenericBoundsCheckingResult::Ok
             }
-            TypeInfo::Generic(_) => unimplemented!()
+            TypeInfo::Generic(_) => todo!()
         }
     }
 }
