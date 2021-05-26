@@ -1,6 +1,6 @@
-use autolang_compiler::compiler::Compiler;
-use autolang_compiler::lexer::Lexer;
-use autolang_compiler::parser::Parser;
+use oolang::compiler::Compiler;
+use oolang::lexer::Lexer;
+use oolang::parser::Parser;
 
 fn main() {
     let tokens = Lexer::new(

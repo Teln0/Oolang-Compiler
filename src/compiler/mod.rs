@@ -2,10 +2,13 @@ pub mod codegen;
 pub mod cycle_detection;
 pub mod ref_managers;
 
-use crate::ast::{ASTModifier, ASTRoot, ASTTypeKind, ASTVisibility, ASTMemberKind};
-use crate::compiler::ref_managers::{AbsolutePath, FieldRefManager, GenericBound, MethodRefManager, TypeInfo, TypeRef, TypeRefAddResult, TypeRefKind, TypeRefManager, TypeRefResolvingContext, TypeRefResolvingResult, GenericBoundsCheckingResult};
-use std::collections::HashMap;
+use crate::ast::{ASTMemberKind, ASTModifier, ASTRoot, ASTTypeKind, ASTVisibility};
 use crate::compiler::cycle_detection::check_cycles;
+use crate::compiler::ref_managers::{
+    AbsolutePath, FieldRefManager, GenericBound, GenericBoundsCheckingResult, MethodRefManager,
+    TypeInfo, TypeRef, TypeRefAddResult, TypeRefKind, TypeRefManager, TypeRefResolvingContext,
+    TypeRefResolvingResult,
+};
 
 pub struct Compiler<'a> {
     field_ref_manager: FieldRefManager<'a>,
@@ -145,17 +148,14 @@ impl<'a> Compiler<'a> {
                             .type_ref_manager
                             .resolve_type_info(context, &super_class.into_type_info())
                         {
-                            if let TypeInfo::Real { .. } = super_class
-                            {
+                            if let TypeInfo::Real { .. } = super_class {
                                 match &mut self.type_ref_manager.type_refs[type_ref].kind {
                                     TypeRefKind::Class {
                                         super_class: sc, ..
                                     } => {
-                                        sc.replace(
-                                            super_class.clone(),
-                                        );
+                                        sc.replace(super_class.clone());
                                     }
-                                    _ => unreachable!()
+                                    _ => unreachable!(),
                                 }
                             } else {
                                 todo!("cannot extend generic")
@@ -194,7 +194,9 @@ impl<'a> Compiler<'a> {
                     let super_class = self.type_ref_manager.get_super_class_of_real(type_ref);
                     if let Some(super_class) = super_class {
                         // Check if super class is actually a class
-                        if let TypeRefKind::Class { .. } = self.type_ref_manager.type_refs[super_class.type_ref].kind {
+                        if let TypeRefKind::Class { .. } =
+                            self.type_ref_manager.type_refs[super_class.type_ref].kind
+                        {
                             // Check cycles
                             if type_ref == super_class.type_ref {
                                 todo!("class cannot extend itself")
@@ -206,12 +208,14 @@ impl<'a> Compiler<'a> {
                             }
 
                             // Check generics
-                            match self.type_ref_manager.check_generic_bounds(&TypeInfo::Real(super_class)) {
-                                GenericBoundsCheckingResult::Ok => {},
-                                _ => todo!("invalid generic")
+                            match self
+                                .type_ref_manager
+                                .check_generic_bounds(&TypeInfo::Real(super_class))
+                            {
+                                GenericBoundsCheckingResult::Ok => {}
+                                _ => todo!("invalid generic"),
                             }
-                        }
-                        else {
+                        } else {
                             todo!("not a class")
                         }
                     }
@@ -227,9 +231,12 @@ impl<'a> Compiler<'a> {
                     // There cannot be cycles in generics (generics either extend earlier generics, or real types that cannot have cycles)
 
                     // Check generics
-                    match self.type_ref_manager.check_generic_bounds(super_requirement) {
-                        GenericBoundsCheckingResult::Ok => {},
-                        _ => todo!("invalid generic")
+                    match self
+                        .type_ref_manager
+                        .check_generic_bounds(super_requirement)
+                    {
+                        GenericBoundsCheckingResult::Ok => {}
+                        _ => todo!("invalid generic"),
                     }
                 }
                 for _impl_requirement in &generic.impl_requirements {
@@ -259,7 +266,7 @@ impl<'a> Compiler<'a> {
                     for member in members {
                         match &member.kind {
                             ASTMemberKind::Field { .. } => unimplemented!(),
-                            ASTMemberKind::Method { .. } => unimplemented!()
+                            ASTMemberKind::Method { .. } => unimplemented!(),
                         }
                     }
                 }

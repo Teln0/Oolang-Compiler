@@ -40,20 +40,20 @@ pub struct FieldRef<'a> {
 pub struct RealTypeInfo {
     pub type_ref: usize,
     pub generics: Vec<TypeInfo>,
-    pub array_dim: usize
+    pub array_dim: usize,
 }
 
 #[derive(Clone, Eq, PartialEq)]
 pub struct GenericTypeInfo {
     pub parent_type: usize,
     pub generics: Vec<TypeInfo>,
-    pub generic_ref: usize
+    pub generic_ref: usize,
 }
 
 #[derive(Clone, Eq, PartialEq)]
 pub enum TypeInfo {
     Real(RealTypeInfo),
-    Generic(GenericTypeInfo)
+    Generic(GenericTypeInfo),
 }
 
 pub enum TypeRefKind<'a> {
@@ -156,7 +156,7 @@ pub enum TypeRefResolvingResult {
 pub enum GenericBoundsCheckingResult {
     Ok,
     LenMismatch,
-    BoundErr
+    BoundErr,
 }
 
 impl<'a> TypeRefManager<'a> {
@@ -248,33 +248,37 @@ impl<'a> TypeRefManager<'a> {
             let super_class = super_class.clone()?;
             if let TypeInfo::Real(super_class) = super_class {
                 Some(super_class)
-            }
-            else {
+            } else {
                 None
             }
-        }
-        else {
+        } else {
             panic!()
         }
     }
 
     pub fn inherits(&self, type_info: &TypeInfo, supposed_super: &TypeInfo) -> bool {
         match type_info {
-            TypeInfo::Real(RealTypeInfo{ type_ref, .. }) => {
+            TypeInfo::Real(RealTypeInfo { type_ref, .. }) => {
                 match &self.type_refs[*type_ref].kind {
                     TypeRefKind::Class { super_class, .. } => {
                         if let Some(super_class) = super_class {
-                            super_class == supposed_super || self.inherits(super_class, supposed_super)
-                        }
-                        else {
+                            super_class == supposed_super
+                                || self.inherits(super_class, supposed_super)
+                        } else {
                             false
                         }
                     }
-                    _ => todo!()
+                    _ => todo!(),
                 }
             }
-            TypeInfo::Generic(GenericTypeInfo{ parent_type, generic_ref, .. }) => {
-                for requirement in &self.type_refs[*parent_type].generic_bounds[*generic_ref].super_requirements {
+            TypeInfo::Generic(GenericTypeInfo {
+                parent_type,
+                generic_ref,
+                ..
+            }) => {
+                for requirement in
+                    &self.type_refs[*parent_type].generic_bounds[*generic_ref].super_requirements
+                {
                     // Check if any of the super requirements are or contain the supposed super class
                     if requirement == supposed_super || self.inherits(requirement, supposed_super) {
                         return true;
@@ -288,7 +292,9 @@ impl<'a> TypeRefManager<'a> {
 
     pub fn check_generic_bounds(&self, type_info: &TypeInfo) -> GenericBoundsCheckingResult {
         match type_info {
-            TypeInfo::Real(RealTypeInfo{ type_ref, generics, .. }) => {
+            TypeInfo::Real(RealTypeInfo {
+                type_ref, generics, ..
+            }) => {
                 let generic_bounds = &self.type_refs[*type_ref].generic_bounds;
                 if generic_bounds.len() != generics.len() {
                     return GenericBoundsCheckingResult::LenMismatch;
@@ -308,7 +314,7 @@ impl<'a> TypeRefManager<'a> {
 
                 GenericBoundsCheckingResult::Ok
             }
-            TypeInfo::Generic(_) => todo!()
+            TypeInfo::Generic(_) => todo!(),
         }
     }
 }

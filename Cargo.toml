@@ -1,5 +1,5 @@
 [package]
-name = "autolang_compiler"
+name = "oolang"
 version = "0.1.0"
 authors = ["teln0 <telnobynoyator@gmail.com>"]
 edition = "2018"
