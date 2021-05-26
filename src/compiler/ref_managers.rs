@@ -56,16 +56,34 @@ pub enum TypeInfo {
     Generic(GenericTypeInfo),
 }
 
+pub struct ClassTypeRefKind<'a> {
+    pub super_class: Option<TypeInfo>,
+    pub impls: Vec<usize>,
+
+    pub is_abstract: bool,
+
+    pub field_name_to_field_ref: HashMap<&'a str, usize>,
+    pub method_name_to_method_ref_map: HashMap<&'a str, MethodRefMap>,
+}
+
 pub enum TypeRefKind<'a> {
-    Class {
-        super_class: Option<TypeInfo>,
-        impls: Vec<usize>,
+    Class(ClassTypeRefKind<'a>),
+}
 
-        is_abstract: bool,
+impl<'a> TypeRefKind<'a> {
+    pub fn unwrap_class(&self) -> &ClassTypeRefKind<'a> {
+        match self {
+            TypeRefKind::Class(c) => c,
+            _ => panic!("unwrapped class on non class type ref kind")
+        }
+    }
 
-        field_name_to_field_ref: HashMap<&'a str, usize>,
-        method_name_to_method_ref_map: HashMap<&'a str, MethodRefMap>,
-    },
+    pub fn unwrap_class_mut(&mut self) -> &mut ClassTypeRefKind<'a> {
+        match self {
+            TypeRefKind::Class(c) => c,
+            _ => panic!("unwrapped class on non class type ref kind")
+        }
+    }
 }
 
 pub struct GenericBound {
@@ -89,13 +107,13 @@ impl<'a> TypeRef<'a> {
         is_abstract: bool,
     ) -> Self {
         TypeRef {
-            kind: TypeRefKind::Class {
+            kind: TypeRefKind::Class(ClassTypeRefKind {
                 super_class: None,
                 impls: vec![],
                 is_abstract,
                 field_name_to_field_ref: HashMap::new(),
                 method_name_to_method_ref_map: HashMap::new(),
-            },
+            }),
             absolute_path,
             visibility,
             generic_bounds: vec![],
@@ -244,15 +262,12 @@ impl<'a> TypeRefManager<'a> {
     }
 
     pub fn get_super_class_of_real(&self, type_ref: usize) -> Option<RealTypeInfo> {
-        if let TypeRefKind::Class { super_class, .. } = &self.type_refs[type_ref].kind {
-            let super_class = super_class.clone()?;
-            if let TypeInfo::Real(super_class) = super_class {
-                Some(super_class)
-            } else {
-                None
-            }
+        let super_class = &self.type_refs[type_ref].kind.unwrap_class().super_class.clone();
+        let super_class = super_class.clone()?;
+        if let TypeInfo::Real(super_class) = super_class {
+            Some(super_class)
         } else {
-            panic!()
+            None
         }
     }
 
@@ -260,7 +275,7 @@ impl<'a> TypeRefManager<'a> {
         match type_info {
             TypeInfo::Real(RealTypeInfo { type_ref, .. }) => {
                 match &self.type_refs[*type_ref].kind {
-                    TypeRefKind::Class { super_class, .. } => {
+                    TypeRefKind::Class(ClassTypeRefKind { super_class, .. }) => {
                         if let Some(super_class) = super_class {
                             super_class == supposed_super
                                 || self.inherits(super_class, supposed_super)
