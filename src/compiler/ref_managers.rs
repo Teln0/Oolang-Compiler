@@ -74,14 +74,14 @@ impl<'a> TypeRefKind<'a> {
     pub fn unwrap_class(&self) -> &ClassTypeRefKind<'a> {
         match self {
             TypeRefKind::Class(c) => c,
-            _ => panic!("unwrapped class on non class type ref kind")
+            _ => panic!("unwrapped class on non class type ref kind"),
         }
     }
 
     pub fn unwrap_class_mut(&mut self) -> &mut ClassTypeRefKind<'a> {
         match self {
             TypeRefKind::Class(c) => c,
-            _ => panic!("unwrapped class on non class type ref kind")
+            _ => panic!("unwrapped class on non class type ref kind"),
         }
     }
 }
@@ -262,7 +262,11 @@ impl<'a> TypeRefManager<'a> {
     }
 
     pub fn get_super_class_of_real(&self, type_ref: usize) -> Option<RealTypeInfo> {
-        let super_class = &self.type_refs[type_ref].kind.unwrap_class().super_class.clone();
+        let super_class = &self.type_refs[type_ref]
+            .kind
+            .unwrap_class()
+            .super_class
+            .clone();
         let super_class = super_class.clone()?;
         if let TypeInfo::Real(super_class) = super_class {
             Some(super_class)

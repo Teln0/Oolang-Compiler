@@ -4,7 +4,11 @@ pub mod ref_managers;
 
 use crate::ast::{ASTMemberKind, ASTModifier, ASTRoot, ASTTypeKind, ASTVisibility};
 use crate::compiler::cycle_detection::check_cycles;
-use crate::compiler::ref_managers::{AbsolutePath, FieldRefManager, GenericBound, GenericBoundsCheckingResult, MethodRefManager, TypeInfo, TypeRef, TypeRefAddResult, TypeRefKind, TypeRefManager, TypeRefResolvingContext, TypeRefResolvingResult, ClassTypeRefKind};
+use crate::compiler::ref_managers::{
+    AbsolutePath, ClassTypeRefKind, FieldRefManager, GenericBound, GenericBoundsCheckingResult,
+    MethodRefManager, TypeInfo, TypeRef, TypeRefAddResult, TypeRefKind, TypeRefManager,
+    TypeRefResolvingContext, TypeRefResolvingResult,
+};
 
 pub struct Compiler<'a> {
     field_ref_manager: FieldRefManager<'a>,
@@ -12,7 +16,7 @@ pub struct Compiler<'a> {
     type_ref_manager: TypeRefManager<'a>,
 
     constructor_prefix: Vec<u8>,
-    static_prefix: Vec<u8>
+    static_prefix: Vec<u8>,
 }
 
 impl<'a> Compiler<'a> {
@@ -21,6 +25,9 @@ impl<'a> Compiler<'a> {
             field_ref_manager: FieldRefManager::new(),
             method_ref_manager: MethodRefManager::new(),
             type_ref_manager: TypeRefManager::new(),
+
+            constructor_prefix: vec![],
+            static_prefix: vec![],
         }
     }
 
@@ -148,7 +155,11 @@ impl<'a> Compiler<'a> {
                             .resolve_type_info(context, &super_class.into_type_info())
                         {
                             if let TypeInfo::Real { .. } = super_class {
-                                self.type_ref_manager.type_refs[type_ref].kind.unwrap_class_mut().super_class.replace(super_class);
+                                self.type_ref_manager.type_refs[type_ref]
+                                    .kind
+                                    .unwrap_class_mut()
+                                    .super_class
+                                    .replace(super_class);
                             } else {
                                 todo!("cannot extend generic")
                             }
@@ -257,7 +268,12 @@ impl<'a> Compiler<'a> {
                 ASTTypeKind::Class { members, .. } => {
                     for member in members {
                         match &member.kind {
-                            ASTMemberKind::Field { .. } => unimplemented!(),
+                            ASTMemberKind::Field {
+                                name_and_type,
+                                expression,
+                            } => {
+                                self.process_new_field(type_ref, context, name_and_type, expression)
+                            }
                             ASTMemberKind::Method { .. } => unimplemented!(),
                         }
                     }
