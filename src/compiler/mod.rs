@@ -1,14 +1,34 @@
 pub mod codegen;
 pub mod cycle_detection;
-pub mod ref_managers;
+pub mod field_ref_manager;
+pub mod method_ref_manager;
+pub mod type_ref_manager;
 
-use crate::ast::{ASTMemberKind, ASTModifier, ASTRoot, ASTTypeKind, ASTVisibility};
+use crate::ast::{ASTMemberKind, ASTModifier, ASTRoot, ASTTypeKind, ASTVisibility, ASTPath};
 use crate::compiler::cycle_detection::check_cycles;
-use crate::compiler::ref_managers::{
-    AbsolutePath, ClassTypeRefKind, FieldRefManager, GenericBound, GenericBoundsCheckingResult,
-    MethodRefManager, TypeInfo, TypeRef, TypeRefAddResult, TypeRefKind, TypeRefManager,
+use crate::compiler::type_ref_manager::{
+    GenericBound, GenericBoundsCheckingResult, TypeInfo, TypeRef, TypeRefAddResult, TypeRefKind, TypeRefManager,
     TypeRefResolvingContext, TypeRefResolvingResult,
 };
+use crate::compiler::field_ref_manager::FieldRefManager;
+use crate::compiler::method_ref_manager::MethodRefManager;
+
+#[derive(Clone)]
+pub struct AbsolutePath<'a> {
+    pub elements: Vec<&'a str>,
+}
+
+impl<'a> AbsolutePath<'a> {
+    pub fn empty() -> Self {
+        AbsolutePath { elements: vec![] }
+    }
+
+    pub fn from_ast_path(path: &ASTPath<'a>) -> Self {
+        AbsolutePath {
+            elements: path.elements.clone(),
+        }
+    }
+}
 
 pub struct Compiler<'a> {
     field_ref_manager: FieldRefManager<'a>,
@@ -268,12 +288,7 @@ impl<'a> Compiler<'a> {
                 ASTTypeKind::Class { members, .. } => {
                     for member in members {
                         match &member.kind {
-                            ASTMemberKind::Field {
-                                name_and_type,
-                                expression,
-                            } => {
-                                self.process_new_field(type_ref, context, name_and_type, expression)
-                            }
+                            ASTMemberKind::Field { .. } => unimplemented!(),
                             ASTMemberKind::Method { .. } => unimplemented!(),
                         }
                     }

@@ -1,40 +1,7 @@
-use crate::ast::{ASTPath, ASTTypeInfo};
+use crate::ast::{ASTTypeInfo};
 use std::collections::HashMap;
-
-#[derive(Clone)]
-pub struct AbsolutePath<'a> {
-    pub elements: Vec<&'a str>,
-}
-
-impl<'a> AbsolutePath<'a> {
-    pub fn empty() -> Self {
-        AbsolutePath { elements: vec![] }
-    }
-
-    pub fn from_ast_path(path: &ASTPath<'a>) -> Self {
-        AbsolutePath {
-            elements: path.elements.clone(),
-        }
-    }
-}
-
-pub struct MethodRef<'a> {
-    pub type_absolute_path: AbsolutePath<'a>,
-    pub visibility: AbsolutePath<'a>,
-    pub name: &'a str,
-
-    pub is_static: bool,
-    pub is_abstract: bool,
-    pub is_native: bool,
-}
-
-pub struct FieldRef<'a> {
-    pub type_absolute_path: AbsolutePath<'a>,
-    pub visibility: AbsolutePath<'a>,
-    pub name: &'a str,
-
-    pub is_static: bool,
-}
+use crate::compiler::AbsolutePath;
+use crate::compiler::method_ref_manager::{MethodRefMap};
 
 #[derive(Clone, Eq, PartialEq)]
 pub struct RealTypeInfo {
@@ -119,33 +86,6 @@ impl<'a> TypeRef<'a> {
             generic_bounds: vec![],
             name_to_generic_bound: HashMap::new(),
         }
-    }
-}
-
-pub struct MethodRefManager<'a> {
-    pub method_refs: Vec<MethodRef<'a>>,
-}
-
-pub struct MethodRefMap {
-    // Vectors of usize represent a list of parameters. Each usize is a type ref
-    pub parameters_to_method_ref: HashMap<Vec<usize>, usize>,
-}
-
-impl<'a> MethodRefManager<'a> {
-    pub fn new() -> Self {
-        MethodRefManager {
-            method_refs: vec![],
-        }
-    }
-}
-
-pub struct FieldRefManager<'a> {
-    pub field_refs: Vec<TypeRef<'a>>,
-}
-
-impl<'a> FieldRefManager<'a> {
-    pub fn new() -> Self {
-        FieldRefManager { field_refs: vec![] }
     }
 }
 
