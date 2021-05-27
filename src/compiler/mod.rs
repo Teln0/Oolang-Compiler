@@ -2,16 +2,18 @@ pub mod codegen;
 pub mod cycle_detection;
 pub mod field_ref_manager;
 pub mod method_ref_manager;
+pub mod type_info;
 pub mod type_ref_manager;
 
 use crate::ast::{ASTMemberKind, ASTModifier, ASTRoot, ASTTypeKind, ASTVisibility, ASTPath};
 use crate::compiler::cycle_detection::check_cycles;
 use crate::compiler::type_ref_manager::{
-    GenericBound, GenericBoundsCheckingResult, TypeInfo, TypeRef, TypeRefAddResult, TypeRefKind, TypeRefManager,
+    GenericBound, GenericBoundsCheckingResult, TypeRef, TypeRefAddResult, TypeRefKind, TypeRefManager,
     TypeRefResolvingContext, TypeRefResolvingResult,
 };
 use crate::compiler::field_ref_manager::FieldRefManager;
 use crate::compiler::method_ref_manager::MethodRefManager;
+use crate::compiler::type_info::TypeInfo;
 
 #[derive(Clone)]
 pub struct AbsolutePath<'a> {

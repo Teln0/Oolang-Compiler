@@ -2,26 +2,7 @@ use crate::ast::{ASTTypeInfo};
 use std::collections::HashMap;
 use crate::compiler::AbsolutePath;
 use crate::compiler::method_ref_manager::{MethodRefMap};
-
-#[derive(Clone, Eq, PartialEq)]
-pub struct RealTypeInfo {
-    pub type_ref: usize,
-    pub generics: Vec<TypeInfo>,
-    pub array_dim: usize,
-}
-
-#[derive(Clone, Eq, PartialEq)]
-pub struct GenericTypeInfo {
-    pub parent_type: usize,
-    pub generics: Vec<TypeInfo>,
-    pub generic_ref: usize,
-}
-
-#[derive(Clone, Eq, PartialEq)]
-pub enum TypeInfo {
-    Real(RealTypeInfo),
-    Generic(GenericTypeInfo),
-}
+use crate::compiler::type_info::{TypeInfo, RealTypeInfo, GenericTypeInfo};
 
 pub struct ClassTypeRefKind<'a> {
     pub super_class: Option<TypeInfo>,
