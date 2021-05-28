@@ -5,15 +5,15 @@ pub mod method_ref_manager;
 pub mod type_info;
 pub mod type_ref_manager;
 
-use crate::ast::{ASTMemberKind, ASTModifier, ASTRoot, ASTTypeKind, ASTVisibility, ASTPath};
+use crate::ast::{ASTMemberKind, ASTModifier, ASTPath, ASTRoot, ASTTypeKind, ASTVisibility};
 use crate::compiler::cycle_detection::check_cycles;
-use crate::compiler::type_ref_manager::{
-    GenericBound, GenericBoundsCheckingResult, TypeRef, TypeRefAddResult, TypeRefKind, TypeRefManager,
-    TypeRefResolvingContext, TypeRefResolvingResult,
-};
-use crate::compiler::field_ref_manager::FieldRefManager;
+use crate::compiler::field_ref_manager::{FieldRef, FieldRefManager};
 use crate::compiler::method_ref_manager::MethodRefManager;
-use crate::compiler::type_info::TypeInfo;
+use crate::compiler::type_info::{RealTypeInfo, TypeInfo};
+use crate::compiler::type_ref_manager::{
+    FieldRefGenericBound, TypeRef, TypeRefAddResult, TypeRefKind, TypeRefManager, TypeRefResolvingContext,
+    TypeRefResolvingResult,
+};
 
 #[derive(Clone)]
 pub struct AbsolutePath<'a> {
@@ -114,7 +114,7 @@ impl<'a> Compiler<'a> {
                     super_requirements.push(
                         if let Some(type_info) = self
                             .type_ref_manager
-                            .resolve_type_info(context, &requirement.into_type_info())
+                            .resolve_type_info_unchecked(context, &requirement.into_type_info())
                         {
                             type_info
                         } else {
@@ -127,7 +127,7 @@ impl<'a> Compiler<'a> {
                     impl_requirements.push(
                         if let Some(type_info) = self
                             .type_ref_manager
-                            .resolve_type_info(context, &requirement.into_type_info())
+                            .resolve_type_info_unchecked(context, &requirement.into_type_info())
                         {
                             type_info
                         } else {
@@ -135,7 +135,7 @@ impl<'a> Compiler<'a> {
                         },
                     );
                 }
-                let generic_bound = GenericBound {
+                let generic_bound = FieldRefGenericBound {
                     super_requirements,
                     impl_requirements,
                 };
@@ -174,12 +174,12 @@ impl<'a> Compiler<'a> {
 
                         if let Some(super_class) = self
                             .type_ref_manager
-                            .resolve_type_info(context, &super_class.into_type_info())
+                            .resolve_type_info_unchecked(context, &super_class.into_type_info())
                         {
                             if let TypeInfo::Real { .. } = super_class {
                                 self.type_ref_manager.type_refs[type_ref]
                                     .kind
-                                    .unwrap_class_mut()
+                                    .unwrap_class_ref_mut()
                                     .super_class
                                     .replace(super_class);
                             } else {
@@ -216,7 +216,8 @@ impl<'a> Compiler<'a> {
             match &type_decl.kind {
                 ASTTypeKind::Class { .. } => {
                     // If there is a super class, check it
-                    let super_class = self.type_ref_manager.get_super_class_of_real(type_ref);
+                    let super_class =
+                        RealTypeInfo::get_super_class(type_ref, &self.type_ref_manager);
                     if let Some(super_class) = super_class {
                         // Check if super class is actually a class
                         if let TypeRefKind::Class { .. } =
@@ -227,17 +228,19 @@ impl<'a> Compiler<'a> {
                                 todo!("class cannot extend itself")
                             }
                             if !check_cycles(super_class.type_ref, |t| {
-                                Some(self.type_ref_manager.get_super_class_of_real(t)?.type_ref)
+                                Some(
+                                    RealTypeInfo::get_super_class(t, &self.type_ref_manager)?
+                                        .type_ref,
+                                )
                             }) {
                                 todo!("cycle detected")
                             }
 
                             // Check generics
-                            match self
-                                .type_ref_manager
-                                .check_generic_bounds(&TypeInfo::Real(super_class))
+                            match TypeInfo::Real(super_class)
+                                .check_generic_bounds(&self.type_ref_manager)
                             {
-                                GenericBoundsCheckingResult::Ok => {}
+                                Ok(_) => {}
                                 _ => todo!("invalid generic"),
                             }
                         } else {
@@ -256,11 +259,8 @@ impl<'a> Compiler<'a> {
                     // There cannot be cycles in generics (generics either extend earlier generics, or real types that cannot have cycles)
 
                     // Check generics
-                    match self
-                        .type_ref_manager
-                        .check_generic_bounds(super_requirement)
-                    {
-                        GenericBoundsCheckingResult::Ok => {}
+                    match super_requirement.check_generic_bounds(&self.type_ref_manager) {
+                        Ok(_) => {}
                         _ => todo!("invalid generic"),
                     }
                 }
@@ -286,12 +286,58 @@ impl<'a> Compiler<'a> {
             };
             context.origin_type_ref = Some(type_ref);
 
+            let mut type_absolute_path = AbsolutePath::from_ast_path(&root.mod_decl.path);
+            type_absolute_path.elements.push(type_decl.name);
+
             match &type_decl.kind {
                 ASTTypeKind::Class { members, .. } => {
                     for member in members {
                         match &member.kind {
-                            ASTMemberKind::Field { .. } => unimplemented!(),
-                            ASTMemberKind::Method { .. } => unimplemented!(),
+                            ASTMemberKind::Field { name_and_type, .. } => {
+                                let mut is_static: bool = false;
+                                for modifier in &type_decl.modifiers {
+                                    match modifier {
+                                        ASTModifier::Static => {
+                                            if is_static {
+                                                todo!("duplicate modifier")
+                                            } else {
+                                                is_static = true
+                                            }
+                                        }
+                                        ASTModifier::Abstract => todo!("invalid modifier"),
+                                        ASTModifier::Native => todo!("invalid modifier"),
+                                    }
+                                }
+                                let visibility = match type_decl.visibility {
+                                    ASTVisibility::Public => AbsolutePath::empty(),
+                                    ASTVisibility::Module => {
+                                        AbsolutePath::from_ast_path(&root.mod_decl.path)
+                                    }
+                                    ASTVisibility::Private => type_absolute_path.clone(),
+                                };
+                                let type_info = if let Some(type_info) = self
+                                    .type_ref_manager
+                                    .resolve_type_info_checked(context, &name_and_type.type_info)
+                                {
+                                    type_info
+                                } else {
+                                    todo!("unknown / invalid type for field")
+                                };
+
+                                self.field_ref_manager.add(
+                                    FieldRef {
+                                        is_static,
+                                        name: name_and_type.name,
+                                        type_info,
+                                        visibility,
+                                    },
+                                    type_ref,
+                                    &mut self.type_ref_manager,
+                                );
+
+                                todo!("codegen")
+                            }
+                            ASTMemberKind::Method { .. } => todo!()
                         }
                     }
                 }

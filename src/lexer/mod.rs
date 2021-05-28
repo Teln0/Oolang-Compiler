@@ -32,6 +32,7 @@ pub enum KeywordTokenKind {
     Enum,
     Impl,
 
+    Where,
     Fn,
 
     Mod,
@@ -68,6 +69,7 @@ pub enum TokenKind {
 
     Semicolon,
     Colon,
+    Inheritance,
     ColonColon,
     Comma,
     Dot,

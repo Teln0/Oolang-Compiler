@@ -1,8 +1,8 @@
-use crate::ast::{ASTTypeInfo};
+use crate::ast::ASTTypeInfo;
+use crate::compiler::method_ref_manager::MethodRefMap;
+use crate::compiler::type_info::{GenericTypeInfo, RealTypeInfo, TypeInfo};
+use crate::compiler::{AbsolutePath, Compiler};
 use std::collections::HashMap;
-use crate::compiler::AbsolutePath;
-use crate::compiler::method_ref_manager::{MethodRefMap};
-use crate::compiler::type_info::{TypeInfo, RealTypeInfo, GenericTypeInfo};
 
 pub struct ClassTypeRefKind<'a> {
     pub super_class: Option<TypeInfo>,
@@ -19,14 +19,14 @@ pub enum TypeRefKind<'a> {
 }
 
 impl<'a> TypeRefKind<'a> {
-    pub fn unwrap_class(&self) -> &ClassTypeRefKind<'a> {
+    pub fn unwrap_class_ref(&self) -> &ClassTypeRefKind<'a> {
         match self {
             TypeRefKind::Class(c) => c,
             _ => panic!("unwrapped class on non class type ref kind"),
         }
     }
 
-    pub fn unwrap_class_mut(&mut self) -> &mut ClassTypeRefKind<'a> {
+    pub fn unwrap_class_ref_mut(&mut self) -> &mut ClassTypeRefKind<'a> {
         match self {
             TypeRefKind::Class(c) => c,
             _ => panic!("unwrapped class on non class type ref kind"),
@@ -34,7 +34,7 @@ impl<'a> TypeRefKind<'a> {
     }
 }
 
-pub struct GenericBound {
+pub struct FieldRefGenericBound {
     pub super_requirements: Vec<TypeInfo>,
     pub impl_requirements: Vec<TypeInfo>,
 }
@@ -44,7 +44,7 @@ pub struct TypeRef<'a> {
     pub absolute_path: AbsolutePath<'a>,
     pub visibility: AbsolutePath<'a>,
 
-    pub generic_bounds: Vec<GenericBound>,
+    pub generic_bounds: Vec<FieldRefGenericBound>,
     pub name_to_generic_bound: HashMap<&'a str, usize>,
 }
 
@@ -75,27 +75,21 @@ pub struct TypeRefManager<'a> {
     pub name_to_type_ref: HashMap<&'a str, usize>,
 }
 
-pub enum TypeRefAddResult {
-    Duplicate,
-    Ok,
-}
-
 #[derive(Copy, Clone)]
 pub struct TypeRefResolvingContext<'a, 'b> {
     pub origin: &'b [&'a str],
     pub origin_type_ref: Option<usize>,
 }
 
+pub enum TypeRefAddResult {
+    Duplicate,
+    Ok,
+}
+
 pub enum TypeRefResolvingResult {
     None,
     Real(usize),
     Generic(usize, usize),
-}
-
-pub enum GenericBoundsCheckingResult {
-    Ok,
-    LenMismatch,
-    BoundErr,
 }
 
 impl<'a> TypeRefManager<'a> {
@@ -148,7 +142,7 @@ impl<'a> TypeRefManager<'a> {
         }
     }
 
-    pub fn resolve_type_info(
+    pub fn resolve_type_info_unchecked(
         &self,
         context: TypeRefResolvingContext<'a, '_>,
         type_info: &ASTTypeInfo,
@@ -158,7 +152,7 @@ impl<'a> TypeRefManager<'a> {
             TypeRefResolvingResult::Real(type_ref) => {
                 let mut generics = vec![];
                 for generic in &type_info.generics {
-                    let generic = self.resolve_type_info(context, generic)?;
+                    let generic = self.resolve_type_info_unchecked(context, generic)?;
                     generics.push(generic);
                 }
                 Some(TypeInfo::Real(RealTypeInfo {
@@ -170,7 +164,7 @@ impl<'a> TypeRefManager<'a> {
             TypeRefResolvingResult::Generic(parent_type, generic_ref) => {
                 let mut generics = vec![];
                 for generic in &type_info.generics {
-                    let generic = self.resolve_type_info(context, generic)?;
+                    let generic = self.resolve_type_info_unchecked(context, generic)?;
                     generics.push(generic);
                 }
                 Some(TypeInfo::Generic(GenericTypeInfo {
@@ -182,79 +176,15 @@ impl<'a> TypeRefManager<'a> {
         }
     }
 
-    pub fn get_super_class_of_real(&self, type_ref: usize) -> Option<RealTypeInfo> {
-        let super_class = &self.type_refs[type_ref]
-            .kind
-            .unwrap_class()
-            .super_class
-            .clone();
-        let super_class = super_class.clone()?;
-        if let TypeInfo::Real(super_class) = super_class {
-            Some(super_class)
-        } else {
-            None
-        }
-    }
-
-    pub fn inherits(&self, type_info: &TypeInfo, supposed_super: &TypeInfo) -> bool {
-        match type_info {
-            TypeInfo::Real(RealTypeInfo { type_ref, .. }) => {
-                match &self.type_refs[*type_ref].kind {
-                    TypeRefKind::Class(ClassTypeRefKind { super_class, .. }) => {
-                        if let Some(super_class) = super_class {
-                            super_class == supposed_super
-                                || self.inherits(super_class, supposed_super)
-                        } else {
-                            false
-                        }
-                    }
-                    _ => todo!(),
-                }
-            }
-            TypeInfo::Generic(GenericTypeInfo {
-                parent_type,
-                generic_ref,
-                ..
-            }) => {
-                for requirement in
-                    &self.type_refs[*parent_type].generic_bounds[*generic_ref].super_requirements
-                {
-                    // Check if any of the super requirements are or contain the supposed super class
-                    if requirement == supposed_super || self.inherits(requirement, supposed_super) {
-                        return true;
-                    }
-                }
-
-                false
-            }
-        }
-    }
-
-    pub fn check_generic_bounds(&self, type_info: &TypeInfo) -> GenericBoundsCheckingResult {
-        match type_info {
-            TypeInfo::Real(RealTypeInfo {
-                type_ref, generics, ..
-            }) => {
-                let generic_bounds = &self.type_refs[*type_ref].generic_bounds;
-                if generic_bounds.len() != generics.len() {
-                    return GenericBoundsCheckingResult::LenMismatch;
-                }
-
-                for i in 0..generic_bounds.len() {
-                    if generic_bounds[i].impl_requirements.len() != 0 {
-                        todo!()
-                    }
-
-                    for super_requirement in &generic_bounds[i].super_requirements {
-                        if !self.inherits(&generics[i], super_requirement) {
-                            return GenericBoundsCheckingResult::BoundErr;
-                        }
-                    }
-                }
-
-                GenericBoundsCheckingResult::Ok
-            }
-            TypeInfo::Generic(_) => todo!(),
+    pub fn resolve_type_info_checked(
+        &self,
+        context: TypeRefResolvingContext<'a, '_>,
+        type_info: &ASTTypeInfo,
+    ) -> Option<TypeInfo> {
+        let type_info = self.resolve_type_info_unchecked(context, type_info)?;
+        match type_info.check_generic_bounds(self) {
+            Ok(_) => Some(type_info),
+            Err(_) => None,
         }
     }
 }

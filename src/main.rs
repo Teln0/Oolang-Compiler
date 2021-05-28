@@ -14,8 +14,7 @@ fn main() {
     }
 
     class Main<T: C, T2: B<T>> {
-        pub static fn main() {
-        }
+        field_1: B<C>;
     }
     ",
     )
