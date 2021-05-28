@@ -1,4 +1,3 @@
-use oolang::compiler::Compiler;
 use oolang::lexer::Lexer;
 use oolang::parser::Parser;
 
@@ -21,7 +20,5 @@ fn main() {
     .lex()
     .unwrap();
 
-    let ast = Parser::new(tokens).parse().unwrap();
-
-    Compiler::new().compile(&ast);
+    let _ast = Parser::new(tokens).parse().unwrap();
 }
