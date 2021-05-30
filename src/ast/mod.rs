@@ -34,7 +34,7 @@ pub enum ASTVisibility {
 pub enum ASTTypeKind<'a> {
     Class {
         members: Vec<ASTMember<'a>>,
-        super_class: Option<ASTPartialTypeInfo<'a>>,
+        supers: Vec<ASTPartialTypeInfo<'a>>,
         impls: Vec<ASTPartialTypeInfo<'a>>,
     },
     Inter {
@@ -55,7 +55,8 @@ pub struct ASTType<'a> {
     pub visibility: ASTVisibility,
     pub modifiers: Vec<ASTModifier>,
     pub name: &'a str,
-    pub generics: Vec<ASTGenericBound<'a>>,
+    pub generics: Vec<&'a str>,
+    pub generic_bounds: Vec<ASTGenericBound<'a>>
 }
 
 pub struct ASTGenericBound<'a> {

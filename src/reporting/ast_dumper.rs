@@ -157,7 +157,7 @@ impl ASTVisitor for ASTDumperVisitor {
             ASTStatementKind::Local(name, type_info, expr) => {
                 let mut branch = ASTDumperVisitor::new(format!("let {}", name));
                 if let Some(type_info) = type_info {
-                    let mut branch_inner = ASTDumperVisitor::new(format!("type"));
+                    let mut branch_inner = ASTDumperVisitor::new(format!("ty"));
                     branch_inner.walk_type_info(type_info);
                     branch.tree.add_tree_branch(branch_inner.tree);
                 }
@@ -186,7 +186,7 @@ impl ASTVisitor for ASTDumperVisitor {
     }
 
     fn walk_type_info(&mut self, obj: &ASTTypeInfo) {
-        let mut branch = ASTDumperVisitor::new(format!("type info"));
+        let mut branch = ASTDumperVisitor::new(format!("ty info"));
 
         let mut branch_inner = ASTDumperVisitor::new(format!("path"));
         branch_inner.walk_path(&obj.path);
@@ -206,7 +206,7 @@ impl ASTVisitor for ASTDumperVisitor {
     }
 
     fn walk_partial_type_info(&mut self, obj: &ASTPartialTypeInfo) {
-        let mut branch = ASTDumperVisitor::new(format!("partial type info"));
+        let mut branch = ASTDumperVisitor::new(format!("partial ty info"));
 
         let mut branch_inner = ASTDumperVisitor::new(format!("path"));
         branch_inner.walk_path(&obj.path);
@@ -289,7 +289,7 @@ impl ASTVisitor for ASTDumperVisitor {
             } => {
                 let mut branch = ASTDumperVisitor::new(format!("field {}", name_and_type.name));
 
-                let mut branch_inner = ASTDumperVisitor::new(format!("type"));
+                let mut branch_inner = ASTDumperVisitor::new(format!("ty"));
                 branch_inner.walk_type_info(&name_and_type.type_info);
                 branch.tree.add_tree_branch(branch_inner.tree);
 
@@ -308,7 +308,7 @@ impl ASTVisitor for ASTDumperVisitor {
             } => {
                 let mut branch = ASTDumperVisitor::new(format!("method {}", name_and_type.name));
 
-                let mut branch_inner = ASTDumperVisitor::new(format!("return type"));
+                let mut branch_inner = ASTDumperVisitor::new(format!("return ty"));
                 branch_inner.walk_type_info(&name_and_type.type_info);
                 branch.tree.add_tree_branch(branch_inner.tree);
 
@@ -358,21 +358,27 @@ impl ASTVisitor for ASTDumperVisitor {
 
         let mut branch_inner = ASTDumperVisitor::new(format!("generics"));
         for generic in &obj.generics {
-            branch_inner.walk_generic_bound(generic);
+            branch_inner.tree.add_branch(generic);
+        }
+        branch.tree.add_tree_branch(branch_inner.tree);
+
+        let mut branch_inner = ASTDumperVisitor::new(format!("generics_bounds"));
+        for generic_bound in &obj.generic_bounds {
+            branch_inner.walk_generic_bound(generic_bound);
         }
         branch.tree.add_tree_branch(branch_inner.tree);
 
         match &obj.kind {
             ASTTypeKind::Class {
-                super_class,
+                supers,
                 impls,
                 members,
             } => {
-                if let Some(super_class) = super_class {
-                    let mut branch_inner = ASTDumperVisitor::new(format!("super class"));
-                    branch_inner.walk_partial_type_info(super_class);
-                    branch.tree.add_tree_branch(branch_inner.tree);
+                let mut branch_inner = ASTDumperVisitor::new(format!("supers"));
+                for super_decl in supers {
+                    branch_inner.walk_partial_type_info(super_decl);
                 }
+                branch.tree.add_tree_branch(branch_inner.tree);
 
                 let mut branch_inner = ASTDumperVisitor::new(format!("impls"));
                 for impl_decl in impls {

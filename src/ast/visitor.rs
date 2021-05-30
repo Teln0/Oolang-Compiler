@@ -26,7 +26,7 @@ pub trait ASTVisitor {
             ASTTypeKind::Class {
                 members,
                 impls,
-                super_class,
+                supers,
             } => {
                 for member in members {
                     self.walk_member(member);
@@ -34,8 +34,8 @@ pub trait ASTVisitor {
                 for impl_ in impls {
                     self.walk_partial_type_info(impl_);
                 }
-                if let Some(super_class) = super_class {
-                    self.walk_partial_type_info(super_class);
+                for super_ in supers {
+                    self.walk_partial_type_info(super_);
                 }
             }
             ASTTypeKind::Inter {
@@ -62,8 +62,8 @@ pub trait ASTVisitor {
         for modifier in &obj.modifiers {
             self.walk_modifier(modifier);
         }
-        for generic in &obj.generics {
-            self.walk_generic_bound(generic);
+        for generic_bound in &obj.generic_bounds {
+            self.walk_generic_bound(generic_bound);
         }
         self.walk_visibility(&obj.visibility);
     }

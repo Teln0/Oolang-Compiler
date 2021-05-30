@@ -1,24 +1,21 @@
 use oolang::lexer::Lexer;
 use oolang::parser::Parser;
+use oolang::reporting::ast_dumper::dump_from_root;
 
 fn main() {
     let tokens = Lexer::new(
         "
     mod telno::testing;
 
-    class C {
-    }
-
-    class B<T: C> {
-    }
-
-    class Main<T: C, T2: B<T>> {
-        field_1: B<C>;
+    class A<T>
+     where T <: SuperClassOfT<B> : InterfaceImplementedByT<C> {
     }
     ",
     )
     .lex()
     .unwrap();
 
-    let _ast = Parser::new(tokens).parse().unwrap();
+    let ast = Parser::new(tokens).parse().unwrap();
+
+    dump_from_root(&ast);
 }

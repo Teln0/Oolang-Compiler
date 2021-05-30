@@ -597,48 +597,40 @@ impl<'a> Parser<'a> {
         result
     }
 
-    pub fn parse_generic_bound(&mut self) -> Result<ASTGenericBound<'a>, ParserError> {
-        let starting_token = self.current_token;
-
-        let name = self.tokens[self.current_token].string;
-        self.advance_match(TokenKind::Ident)?;
-        let mut super_requirements = vec![];
-        let mut impl_requirements = vec![];
-        if self.peek() == TokenKind::Colon {
+    pub fn parse_generics(&mut self) -> Result<Vec<&'a str>, ParserError> {
+        let mut result = vec![];
+        if self.peek() == TokenKind::Ls {
             self.advance();
-            super_requirements.push(self.parse_partial_type_info()?);
-        }
-        if self.peek() == TokenKind::Keyword(KeywordTokenKind::Impl) {
-            self.advance();
-            impl_requirements.push(self.parse_partial_type_info()?);
+            result.push(self.tokens[self.current_token].string);
+            self.advance_match(TokenKind::Ident)?;
             while self.peek() == TokenKind::Comma {
                 self.advance();
-                impl_requirements.push(self.parse_partial_type_info()?);
+                result.push(self.tokens[self.current_token].string);
+                self.advance_match(TokenKind::Ident)?;
             }
+            self.advance_match(TokenKind::Gt)?;
         }
-
-        Ok(ASTGenericBound {
-            span: TokenSpan::new_rn_ex(starting_token, self.current_token),
-            name,
-            super_requirements,
-            impl_requirements,
-        })
+        Ok(result)
     }
 
     pub fn parse_generic_bounds(&mut self) -> Result<Vec<ASTGenericBound<'a>>, ParserError> {
-        if self.peek() == TokenKind::Ls {
-            let mut bounds = vec![];
+        let mut result = vec![];
+
+        while self.peek() == TokenKind::Keyword(KeywordTokenKind::Where) {
+            let starting_token = self.current_token;
             self.advance();
-            bounds.push(self.parse_generic_bound()?);
-            while self.peek() == TokenKind::Comma {
-                self.advance();
-                bounds.push(self.parse_generic_bound()?);
-            }
-            self.advance_match(TokenKind::Gt)?;
-            Ok(bounds)
-        } else {
-            Ok(vec![])
+            let name = self.tokens[self.current_token].string;
+            self.advance_match(TokenKind::Ident)?;
+            let (super_requirements, impl_requirements) = self.parse_supers_and_impls()?;
+            result.push(ASTGenericBound {
+                span: TokenSpan::new_rn_ex(starting_token, self.current_token),
+                name,
+                super_requirements,
+                impl_requirements
+            })
         }
+
+        Ok(result)
     }
 
     pub fn parse_name_and_type(&mut self) -> Result<ASTNameAndType<'a>, ParserError> {
@@ -733,36 +725,45 @@ impl<'a> Parser<'a> {
         })
     }
 
+    pub fn parse_supers_and_impls(&mut self) -> Result<(Vec<ASTPartialTypeInfo<'a>>, Vec<ASTPartialTypeInfo<'a>>), ParserError> {
+        let mut supers = vec![];
+        let mut impls = vec![];
+
+        if self.peek() == TokenKind::Inheritance {
+            self.advance();
+            supers.push(self.parse_partial_type_info()?);
+        }
+
+        if self.peek() == TokenKind::Colon {
+            self.advance();
+            impls.push(self.parse_partial_type_info()?);
+        }
+
+        Ok((supers, impls))
+    }
+
     pub fn parse_type(&mut self) -> Result<ASTType<'a>, ParserError> {
         let starting_token = self.current_token;
 
         let visibility = self.parse_visibility();
         let modifiers = self.parse_modifiers();
         let generics;
+        let generic_bounds;
         let name;
 
         let kind = match self.peek() {
             TokenKind::Keyword(KeywordTokenKind::Class) => {
                 self.advance();
+
                 name = self.tokens[self.current_token].string;
                 self.advance_match(TokenKind::Ident)?;
-                generics = self.parse_generic_bounds()?;
 
-                let super_class = if self.peek() == TokenKind::Colon {
-                    self.advance();
-                    Some(self.parse_partial_type_info()?)
-                } else {
-                    None
-                };
-                let mut impls = vec![];
-                if self.peek() == TokenKind::Keyword(KeywordTokenKind::Impl) {
-                    self.advance();
-                    impls.push(self.parse_partial_type_info()?);
-                    while self.peek() == TokenKind::Comma {
-                        self.advance();
-                        impls.push(self.parse_partial_type_info()?);
-                    }
-                }
+                generics = self.parse_generics()?;
+
+                let (supers, impls) = self.parse_supers_and_impls()?;
+
+                generic_bounds = self.parse_generic_bounds()?;
+
                 self.advance_match(TokenKind::OpeningDelim(DelimTokenKind::CBracket))?;
                 let mut members = vec![];
                 while self.peek() != TokenKind::ClosingDelim(DelimTokenKind::CBracket) {
@@ -771,7 +772,7 @@ impl<'a> Parser<'a> {
                 self.advance();
 
                 ASTTypeKind::Class {
-                    super_class,
+                    supers,
                     members,
                     impls,
                 }
@@ -792,6 +793,7 @@ impl<'a> Parser<'a> {
             visibility,
             modifiers,
             generics,
+            generic_bounds
         })
     }
 
