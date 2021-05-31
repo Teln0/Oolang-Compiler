@@ -18,7 +18,7 @@ impl ASTDumperVisitor {
     }
 }
 
-impl ASTVisitor for ASTDumperVisitor {
+impl ASTVisitor<'_> for ASTDumperVisitor {
     fn walk_expr(&mut self, obj: &ASTExpr) {
         match &obj.kind {
             ASTExprKind::Ident(s) => {
@@ -222,7 +222,9 @@ impl ASTVisitor for ASTDumperVisitor {
     }
 
     fn walk_path(&mut self, obj: &ASTPath) {
-        self.tree.add_branch(&obj.elements.join("::"));
+        self.tree.add_branch(&format!("{} ({})", obj.elements.join("::"), if let Some(corresponding_type) = obj.corresponding_type {
+            format!("{}", corresponding_type)
+        } else { format!("unresolved") }));
     }
 
     fn walk_root(&mut self, obj: &ASTRoot) {
@@ -264,7 +266,9 @@ impl ASTVisitor for ASTDumperVisitor {
     }
 
     fn walk_generic_bound(&mut self, obj: &ASTGenericBound) {
-        let mut branch = ASTDumperVisitor::new(format!("generic {}", obj.name));
+        let mut branch = ASTDumperVisitor::new(format!("generic"));
+
+        self.walk_path(&obj.path);
 
         let mut branch_inner = ASTDumperVisitor::new(format!("super_requirements"));
         for requirement in &obj.super_requirements {

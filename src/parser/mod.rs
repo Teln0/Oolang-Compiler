@@ -489,6 +489,7 @@ impl<'a> Parser<'a> {
 
         Ok(ASTPath {
             span: TokenSpan::new_rn_ex(starting_token, self.current_token),
+            corresponding_type: None,
             elements,
         })
     }
@@ -619,12 +620,11 @@ impl<'a> Parser<'a> {
         while self.peek() == TokenKind::Keyword(KeywordTokenKind::Where) {
             let starting_token = self.current_token;
             self.advance();
-            let name = self.tokens[self.current_token].string;
-            self.advance_match(TokenKind::Ident)?;
+            let path = self.parse_path()?;
             let (super_requirements, impl_requirements) = self.parse_supers_and_impls()?;
             result.push(ASTGenericBound {
                 span: TokenSpan::new_rn_ex(starting_token, self.current_token),
-                name,
+                path,
                 super_requirements,
                 impl_requirements
             })
@@ -678,6 +678,7 @@ impl<'a> Parser<'a> {
                     span: TokenSpan::new(self.current_token, 0),
                     path: ASTPath {
                         span: TokenSpan::new(self.current_token, 0),
+                        corresponding_type: None,
                         elements: vec!["void"],
                     },
                     generics: vec![],
@@ -789,6 +790,7 @@ impl<'a> Parser<'a> {
         Ok(ASTType {
             kind,
             span: TokenSpan::new_rn_ex(starting_token, self.current_token),
+            corresponding_type: 0,
             name,
             visibility,
             modifiers,

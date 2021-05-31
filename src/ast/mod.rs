@@ -52,6 +52,7 @@ pub enum ASTTypeKind<'a> {
 pub struct ASTType<'a> {
     pub kind: ASTTypeKind<'a>,
     pub span: TokenSpan,
+    pub corresponding_type: usize,
     pub visibility: ASTVisibility,
     pub modifiers: Vec<ASTModifier>,
     pub name: &'a str,
@@ -61,7 +62,7 @@ pub struct ASTType<'a> {
 
 pub struct ASTGenericBound<'a> {
     pub span: TokenSpan,
-    pub name: &'a str,
+    pub path: ASTPath<'a>,
     pub super_requirements: Vec<ASTPartialTypeInfo<'a>>,
     pub impl_requirements: Vec<ASTPartialTypeInfo<'a>>,
 }
@@ -109,6 +110,7 @@ pub struct ASTTypeInfo<'a> {
 #[derive(Clone)]
 pub struct ASTPath<'a> {
     pub span: TokenSpan,
+    pub corresponding_type: Option<usize>, // Will be populated during name resolution
     pub elements: Vec<&'a str>,
 }
 
