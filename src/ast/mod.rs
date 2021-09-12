@@ -19,6 +19,7 @@ pub struct ASTUse<'a> {
     pub path: ASTPath<'a>,
 }
 
+#[derive(Debug)]
 pub enum ASTModifier {
     Static,
     Abstract,
@@ -37,16 +38,6 @@ pub enum ASTTypeKind<'a> {
         super_class: Option<ASTPartialTypeInfo<'a>>,
         impls: Vec<ASTPartialTypeInfo<'a>>,
     },
-    Inter {
-        members: Vec<ASTMember<'a>>, // should only be functions
-        super_interfaces: Vec<ASTPartialTypeInfo<'a>>,
-    },
-    Enum {
-        // TODO
-    },
-    Impl {
-        members: Vec<ASTMember<'a>>, // should only be functions
-    },
 }
 
 pub struct ASTType<'a> {
@@ -62,7 +53,6 @@ pub struct ASTGenericBound<'a> {
     pub span: TokenSpan,
     pub name: &'a str,
     pub super_requirements: Vec<ASTPartialTypeInfo<'a>>,
-    pub impl_requirements: Vec<ASTPartialTypeInfo<'a>>,
 }
 
 pub enum ASTMemberKind<'a> {
@@ -90,6 +80,7 @@ pub struct ASTNameAndType<'a> {
     pub name: &'a str,
 }
 
+// Same as type info but without the array dimension
 #[derive(Clone)]
 pub struct ASTPartialTypeInfo<'a> {
     pub span: TokenSpan,
@@ -153,6 +144,7 @@ pub struct ASTStatementBlock<'a> {
 }
 
 pub enum ASTExprKind<'a> {
+    Path(ASTPath<'a>),
     Ident(&'a str),
     StringLiteral(&'a str),
     Num(&'a str),

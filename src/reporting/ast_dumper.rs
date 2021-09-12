@@ -21,6 +21,9 @@ impl ASTDumperVisitor {
 impl ASTVisitor for ASTDumperVisitor {
     fn walk_expr(&mut self, obj: &ASTExpr) {
         match &obj.kind {
+            ASTExprKind::Path(path) => {
+                self.tree.add_branch(&path.elements.join("::"));
+            }
             ASTExprKind::Ident(s) => {
                 self.tree.add_branch(s);
             }
@@ -272,12 +275,6 @@ impl ASTVisitor for ASTDumperVisitor {
         }
         branch.tree.add_tree_branch(branch_inner.tree);
 
-        let mut branch_inner = ASTDumperVisitor::new(format!("impl_requirements"));
-        for requirement in &obj.impl_requirements {
-            branch_inner.walk_partial_type_info(requirement);
-        }
-        branch.tree.add_tree_branch(branch_inner.tree);
-
         self.tree.add_tree_branch(branch.tree);
     }
 
@@ -340,9 +337,6 @@ impl ASTVisitor for ASTDumperVisitor {
             obj.name,
             match obj.kind {
                 ASTTypeKind::Class { .. } => "class",
-                ASTTypeKind::Inter { .. } => "inter",
-                ASTTypeKind::Enum { .. } => "enum",
-                ASTTypeKind::Impl { .. } => "impl",
             }
         ));
 
@@ -386,9 +380,6 @@ impl ASTVisitor for ASTDumperVisitor {
                 }
                 branch.tree.add_tree_branch(branch_inner.tree);
             }
-            ASTTypeKind::Inter { .. } => {}
-            ASTTypeKind::Enum { .. } => {}
-            ASTTypeKind::Impl { .. } => {}
         }
 
         self.tree.add_tree_branch(branch.tree);

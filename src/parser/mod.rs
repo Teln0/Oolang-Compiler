@@ -198,6 +198,15 @@ impl<'a> Parser<'a> {
                 self.advance();
                 res
             }
+            TokenKind::Ls => {
+                self.advance();
+                let path = self.parse_path()?;
+                self.advance_match(TokenKind::Gt)?;
+                Ok(ASTExpr {
+                    kind: ASTExprKind::Path(path),
+                    span: TokenSpan::new_rn_ex(starting_token, self.current_token),
+                })
+            }
             TokenKind::Ident => {
                 let res = Ok(ASTExpr {
                     kind: ASTExprKind::Ident(self.tokens[self.current_token].string),
@@ -603,17 +612,12 @@ impl<'a> Parser<'a> {
         let name = self.tokens[self.current_token].string;
         self.advance_match(TokenKind::Ident)?;
         let mut super_requirements = vec![];
-        let mut impl_requirements = vec![];
         if self.peek() == TokenKind::Colon {
             self.advance();
             super_requirements.push(self.parse_partial_type_info()?);
-        }
-        if self.peek() == TokenKind::Keyword(KeywordTokenKind::Impl) {
-            self.advance();
-            impl_requirements.push(self.parse_partial_type_info()?);
-            while self.peek() == TokenKind::Comma {
+            while self.peek() == TokenKind::Colon {
                 self.advance();
-                impl_requirements.push(self.parse_partial_type_info()?);
+                super_requirements.push(self.parse_partial_type_info()?);
             }
         }
 
@@ -621,7 +625,6 @@ impl<'a> Parser<'a> {
             span: TokenSpan::new_rn_ex(starting_token, self.current_token),
             name,
             super_requirements,
-            impl_requirements,
         })
     }
 

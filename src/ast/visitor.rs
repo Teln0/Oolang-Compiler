@@ -38,25 +38,6 @@ pub trait ASTVisitor {
                     self.walk_partial_type_info(super_class);
                 }
             }
-            ASTTypeKind::Inter {
-                members,
-                super_interfaces,
-            } => {
-                for member in members {
-                    self.walk_member(member);
-                }
-                for inter in super_interfaces {
-                    self.walk_partial_type_info(inter);
-                }
-            }
-            ASTTypeKind::Enum { .. } => {
-                // TODO
-            }
-            ASTTypeKind::Impl { members } => {
-                for member in members {
-                    self.walk_member(member);
-                }
-            }
         }
 
         for modifier in &obj.modifiers {
@@ -70,9 +51,6 @@ pub trait ASTVisitor {
 
     fn walk_generic_bound(&mut self, obj: &ASTGenericBound) {
         for requirement in &obj.super_requirements {
-            self.walk_partial_type_info(requirement);
-        }
-        for requirement in &obj.impl_requirements {
             self.walk_partial_type_info(requirement);
         }
     }
@@ -153,6 +131,7 @@ pub trait ASTVisitor {
 
     fn walk_expr(&mut self, obj: &ASTExpr) {
         match &obj.kind {
+            ASTExprKind::Path(_) => {}
             ASTExprKind::Ident(_) => {}
             ASTExprKind::StringLiteral(_) => {}
             ASTExprKind::Num(_) => {}
