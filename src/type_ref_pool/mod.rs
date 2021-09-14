@@ -8,21 +8,21 @@ pub struct TypeRefGeneric<'a> {
 }
 
 #[derive(Debug)]
-pub struct ClassTypeRef<'a> {
-    pub full_path: Vec<&'a str>,
+pub struct ClassTypeRef {
     pub super_class: Option<TIRTypeInfo>,
 
     pub is_abstract: bool
 }
 
 #[derive(Debug)]
-pub enum TypeRefKind<'a> {
-    Class(ClassTypeRef<'a>)
+pub enum TypeRefKind {
+    Class(ClassTypeRef)
 }
 
 #[derive(Debug)]
 pub struct TypeRef<'a> {
-    pub kind: TypeRefKind<'a>,
+    pub full_path: Vec<&'a str>,
+    pub kind: TypeRefKind,
     pub generics: Vec<TypeRefGeneric<'a>>,
     pub name_to_generic_index: HashMap<&'a str, usize>
 }

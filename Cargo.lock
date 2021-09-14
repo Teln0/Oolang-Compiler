@@ -5,3 +5,10 @@ version = 3
 [[package]]
 name = "oolang"
 version = "0.1.0"
+dependencies = [
+ "oolang_bytecode",
+]
+
+[[package]]
+name = "oolang_bytecode"
+version = "0.1.0"

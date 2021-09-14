@@ -7,4 +7,5 @@ pub mod parser;
 pub mod reporting;
 
 pub mod field_ref_pool;
+pub mod method_ref_pool;
 pub mod type_ref_pool;

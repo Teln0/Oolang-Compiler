@@ -2,6 +2,7 @@ use crate::ast::{ASTRoot, ASTTypeKind, ASTTypeInfo, ASTModifier};
 use crate::tir::{TIRRoot, TIRTypeInfo, TIRTypeInfoKind, TIRType, TIRTypeKind, PrimitiveType};
 use crate::type_ref_pool::{TypeRefPool, TypeRef, TypeRefKind, ClassTypeRef, TypeRefGeneric};
 use std::collections::HashMap;
+use crate::tir::TIRTypeInfoKind::Primitive;
 
 pub mod member_lowerer;
 
@@ -54,28 +55,30 @@ impl<'a> ASTtoTIRLowerer<'a> {
     fn resolve_type_info(&self, type_info: &ASTTypeInfo<'a>, generic_context: Option<&GenericContext<'a, '_>>) -> Result<TIRTypeInfo, ASTtoTIRLowererError<'a>> {
         if type_info.path.elements.len() == 1 {
             'primitive_test: loop {
-                let kind = match type_info.path.elements[0] {
-                    "void" => TIRTypeInfoKind::Primitive(PrimitiveType::Void),
-                    "i64" => TIRTypeInfoKind::Primitive(PrimitiveType::I64),
-                    "i32" => TIRTypeInfoKind::Primitive(PrimitiveType::I32),
-                    "i16" => TIRTypeInfoKind::Primitive(PrimitiveType::I16),
-                    "i8" => TIRTypeInfoKind::Primitive(PrimitiveType::I8),
-                    "u64" => TIRTypeInfoKind::Primitive(PrimitiveType::U64),
-                    "u32" => TIRTypeInfoKind::Primitive(PrimitiveType::U32),
-                    "u16" => TIRTypeInfoKind::Primitive(PrimitiveType::U16),
-                    "u8" => TIRTypeInfoKind::Primitive(PrimitiveType::U8),
-                    "F64" => TIRTypeInfoKind::Primitive(PrimitiveType::F64),
-                    "F32" => TIRTypeInfoKind::Primitive(PrimitiveType::F32),
-                    "bool" => TIRTypeInfoKind::Primitive(PrimitiveType::Boolean),
-                    "char" => TIRTypeInfoKind::Primitive(PrimitiveType::Character),
-                    "type" => TIRTypeInfoKind::Primitive(PrimitiveType::Type),
+                let primitive = match type_info.path.elements[0] {
+                    "void" => PrimitiveType::Void,
+                    "i64" => PrimitiveType::I64,
+                    "i32" => PrimitiveType::I32,
+                    "i16" => PrimitiveType::I16,
+                    "i8" => PrimitiveType::I8,
+                    "u64" => PrimitiveType::U64,
+                    "u32" => PrimitiveType::U32,
+                    "u16" => PrimitiveType::U16,
+                    "u8" => PrimitiveType::U8,
+                    "F64" => PrimitiveType::F64,
+                    "F32" => PrimitiveType::F32,
+                    "bool" => PrimitiveType::Boolean,
+                    "char" => PrimitiveType::Character,
                     _ => break 'primitive_test
                 };
                 if !type_info.generics.is_empty() {
                     return Err(ASTtoTIRLowererError::GenericOnPrimitive);
                 }
                 return Ok(TIRTypeInfo {
-                    kind,
+                    kind: TIRTypeInfoKind::Primitive {
+                        primitive,
+                        array_dim: type_info.array_dim
+                    },
                     span: type_info.span
                 })
             }
@@ -144,7 +147,8 @@ impl<'a> ASTtoTIRLowerer<'a> {
                 ASTTypeKind::Class { .. } => {
                     if let Some(_) = self.type_ref_pool.full_path_to_type_ref_index.insert(full_path.clone(), type_ref_index) {
                         return Err(ASTtoTIRLowererError::DuplicateTypeDecl(full_path.clone()));
-                    };
+                    }
+
                     let mut is_abstract = false;
                     for modifier in &type_decl.modifiers {
                         match modifier {
@@ -157,13 +161,14 @@ impl<'a> ASTtoTIRLowerer<'a> {
                             ASTModifier::Native => return Err(ASTtoTIRLowererError::ModifierNotCompatibleForClass(ASTModifier::Native)),
                         }
                     }
+
                     self.type_ref_pool.type_refs.push(TypeRef {
                         kind: TypeRefKind::Class(ClassTypeRef {
-                            full_path,
                             // Will be filled in later (register_supers)
                             super_class: None,
                             is_abstract
                         }),
+                        full_path,
                         // Will be filled in later (register_generics_boundless)
                         generics: vec![],
                         name_to_generic_index: HashMap::new()
@@ -210,6 +215,10 @@ impl<'a> ASTtoTIRLowerer<'a> {
                     if let Some(super_class) = super_class {
                         let type_info = super_class.into_type_info();
                         let type_info = self.resolve_type_info(&type_info, None)?;
+                        match type_info.kind {
+                            TIRTypeInfoKind::TypeRef { .. } => {}
+                            _ => return Err(ASTtoTIRLowererError::InvalidSuperClass(type_decl.name))
+                        }
                         match &mut self.type_ref_pool.type_refs[type_ref_index].kind {
                             TypeRefKind::Class(class_type_ref) => {
                                 class_type_ref.super_class = Some(type_info);
@@ -331,5 +340,6 @@ pub enum ASTtoTIRLowererError<'a> {
     GenericOnPrimitive,
     TypeMismatch,
     ModifierNotCompatibleForClass(ASTModifier),
-    DuplicateModifier(ASTModifier)
+    DuplicateModifier(ASTModifier),
+    InvalidSuperClass(&'a str)
 }

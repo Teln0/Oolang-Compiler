@@ -24,5 +24,5 @@ fn main() {
     let (tir, type_ref_pool) = ASTtoTIRLowerer::new(ast).lower().unwrap();
     let bytecode_files = Codegen::new(tir, type_ref_pool).get_bytecode().unwrap();
 
-    let _ = bytecode_files;
+    println!("{:?}", bytecode_files);
 }

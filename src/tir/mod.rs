@@ -1,4 +1,5 @@
 use crate::reporting::TokenSpan;
+use std::hash::{Hash, Hasher};
 
 pub mod ast_lowerer;
 
@@ -7,6 +8,7 @@ pub struct TIRRoot<'a> {
     pub types: Vec<TIRType<'a>>,
 }
 
+#[derive(Debug)]
 pub enum TIRModifier {
     Static,
     Abstract,
@@ -50,7 +52,7 @@ pub struct TIRNameAndType<'a> {
     pub name: &'a str,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum PrimitiveType {
     Void,
     I64,
@@ -65,11 +67,9 @@ pub enum PrimitiveType {
     F32,
     Boolean,
     Character,
-    String,
-    Type
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum TIRTypeInfoKind {
     TypeRef {
         type_ref_index: usize,
@@ -81,7 +81,10 @@ pub enum TIRTypeInfoKind {
         generic_index: usize,
         array_dim: usize
     },
-    Primitive(PrimitiveType)
+    Primitive {
+        primitive: PrimitiveType,
+        array_dim: usize
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -98,13 +101,19 @@ impl PartialEq<Self> for TIRTypeInfo {
 
 impl Eq for TIRTypeInfo {}
 
+impl Hash for TIRTypeInfo {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.kind.hash(state);
+    }
+}
+
 #[derive(Clone)]
 pub struct TIRPath<'a> {
     pub span: TokenSpan,
     pub elements: Vec<&'a str>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TIROperator {
     Plus,
     Minus,
@@ -129,22 +138,26 @@ pub enum TIROperator {
     Not,
 }
 
+#[derive(Clone)]
 pub enum TIRStatementKind<'a> {
     Local(&'a str, Option<TIRTypeInfo>, Option<Box<TIRExpr<'a>>>),
     Expression(Box<TIRExpr<'a>>),
 }
 
+#[derive(Clone)]
 pub struct TIRStatement<'a> {
     pub kind: TIRStatementKind<'a>,
     pub span: TokenSpan,
     pub ending: bool,
 }
 
+#[derive(Clone)]
 pub struct TIRStatementBlock<'a> {
     pub span: TokenSpan,
     pub statements: Vec<TIRStatement<'a>>,
 }
 
+#[derive(Clone)]
 pub enum TIRExprKind<'a> {
     StringLiteral(&'a str),
     Num(&'a str),
@@ -177,6 +190,7 @@ pub enum TIRExprKind<'a> {
     For(/* TODO */),
 }
 
+#[derive(Clone)]
 pub struct TIRExpr<'a> {
     pub kind: TIRExprKind<'a>,
     pub span: TokenSpan,
